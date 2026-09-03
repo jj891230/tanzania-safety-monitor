@@ -1,3 +1,4 @@
 원본/
 .env.local
 탄자니아 ODA 기후재난 안전모니터(사무소용).html
+.github/workflows/alert-check.yml
