@@ -51,7 +51,16 @@ button:hover{border-color:var(--accent);color:var(--accent)}
 .phead h2{margin:0;font-size:13px;font-weight:700}
 .phead .note{color:var(--ink3);font-size:11px;font-weight:400}
 .pbody{padding:12px 13px}
-.grid2{display:grid;grid-template-columns:minmax(0,1.52fr) minmax(0,1fr);gap:12px;align-items:start}
+.grid2{display:grid;grid-template-columns:minmax(0,1.52fr) minmax(0,1fr);gap:12px;align-items:start;margin-bottom:12px}
+/* 한 열에 패널을 두 개 쌓을 때(하천 유량 아래 뉴스) 그냥 grid2의 세 번째 아이템으로
+   auto-flow에 맡겼더니, CSS Grid의 암시적 row 높이가 같은 행의 다른 열(지진 패널,
+   더 김)에 맞춰지는 바람에 하천 유량과 뉴스 사이에 80px 넘는 빈 공간이 생겼다
+   (실제 렌더링에서 좌표로 확인함) — grid row는 그 행의 가장 큰 아이템 높이를
+   따라가므로 열마다 높이가 달라지는 이런 배치엔 안 맞는다. 대신 .stack으로 두
+   패널을 하나의 grid 아이템으로 묶어 그 열의 높이가 오직 자기 내용(하천유량+뉴스)
+   으로만 정해지게 한다. */
+.stack{display:flex;flex-direction:column;gap:12px}
+.grid2>.stack>.panel{margin-bottom:0}
 @media(max-width:1180px){.grid2{grid-template-columns:1fr}}
 
 /* ── KPI ── */
@@ -359,12 +368,21 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 </div>
 
 <div class="grid2">
-  <div class="panel">
-    <div class="phead"><h2>주요 하천 유량</h2>
-      <span class="note">GloFAS · 세로선 = 그날의 평년값</span>
-      <span class="seg"><button id="vGauge" class="on">게이지</button><button id="vRtbl">숫자 표</button></span></div>
-    <div class="gwrap" id="rgauge"></div>
-    <div class="scroll" id="rtblbox" style="display:none"><table id="rtbl"></table></div>
+  <!-- .stack으로 하천유량+뉴스를 한 grid 아이템으로 묶는다 — 옆 열(지진)이 더 길어도
+       이 열의 높이는 자기 내용만으로 정해진다(사용자 지적: 뉴스가 따로 전체폭 패널이라
+       오른쪽에 불필요한 여백이 남았다 -> 하천 유량 아래로, 같은 폭으로). -->
+  <div class="stack">
+    <div class="panel">
+      <div class="phead"><h2>주요 하천 유량</h2>
+        <span class="note">GloFAS · 세로선 = 그날의 평년값</span>
+        <span class="seg"><button id="vGauge" class="on">게이지</button><button id="vRtbl">숫자 표</button></span></div>
+      <div class="gwrap" id="rgauge"></div>
+      <div class="scroll" id="rtblbox" style="display:none"><table id="rtbl"></table></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>탄자니아 안전 관련 뉴스</h2><span class="note" id="newsNote">allAfrica · 안전 키워드 필터링</span></div>
+      <div class="pbody"><div class="alist" style="max-height:280px" id="news"></div></div>
+    </div>
   </div>
   <div class="panel">
     <div class="phead"><h2>최근 지진</h2>
@@ -375,11 +393,6 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 </div>
 
 
-
-<div class="panel">
-  <div class="phead"><h2>탄자니아 안전 관련 뉴스</h2><span class="note" id="newsNote">allAfrica · 안전 키워드 필터링</span></div>
-  <div class="pbody"><div class="alist" style="max-height:280px" id="news"></div></div>
-</div>
 
 <div id="modal"></div>
 
