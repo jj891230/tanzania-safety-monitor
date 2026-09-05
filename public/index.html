@@ -239,6 +239,11 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   </div>
 </div>
 
+<div class="panel">
+  <div class="phead"><h2>탄자니아 안전 관련 뉴스</h2><span class="note" id="newsNote">allAfrica · 안전 키워드 필터링</span></div>
+  <div class="pbody"><div class="alist" style="max-height:280px" id="news"></div></div>
+</div>
+
 <div id="modal"></div>
 
 <footer>
@@ -886,6 +891,35 @@ $("#theme").onclick = () => {
 };
 if (ls("tzTheme","light") === "dark") $("#theme").click();
 load();
+loadNews();
+setInterval(loadNews, 15 * 60 * 1000);   // 서버가 10분 캐시하므로 이 주기면 충분
+
+/* ───────── 안전 관련 뉴스 (서버 함수 경유 — RSS는 브라우저 CORS로 직접 못 읽음) ───────── */
+async function loadNews(){
+  try {
+    const r = await fetch("/api/news");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    $("#newsNote").textContent = `allAfrica · 안전 키워드 필터링 · ${d.count}건`
+      + (d.sourceFails?.length ? ` · ${d.sourceFails.length}개 소스 실패` : "");
+    $("#news").innerHTML = d.items.length ? d.items.map(x => `
+      <div class="al l1">
+        <div class="who" style="min-width:64px">${x.source}
+          <div style="font-weight:400;font-size:10px;color:var(--ink3)">${shortNewsDate(x.pubDate)}</div></div>
+        <div class="what"><a href="${x.link}" target="_blank" rel="noopener noreferrer"
+          style="color:var(--ink);text-decoration:none">${x.title}</a></div>
+      </div>`).join("") : `<div class="empty">최근 안전 관련 뉴스 없음</div>`;
+  } catch (e) {
+    $("#newsNote").textContent = "불러오기 실패";
+    $("#news").innerHTML = `<div class="empty">뉴스 로드 실패: ${e.message}</div>`;
+  }
+}
+function shortNewsDate(s){
+  const t = Date.parse(s);
+  if (isNaN(t)) return "";
+  const d = new Date(t);
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
 setInterval(load, 15 * 60 * 1000);   // 15분 자동 갱신
 </script>
 </body>
