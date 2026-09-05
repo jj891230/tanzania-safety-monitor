@@ -237,6 +237,40 @@ tbody tr:hover{background:var(--line2)}
 .chart .cnow{font-size:9px;fill:var(--accent);font-weight:700}
 .note2{font-size:10.5px;color:var(--ink3);margin-top:6px}
 
+/* ── 강수 이동(모달 안) — 과거는 위성 관측, 미래는 예보 격자 ──
+   첫 화면 로딩을 늘리지 않으려고 상세 모달을 열었을 때만 데이터를 받는다. */
+.rain{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--bg)}
+/* 탄자니아 지도는 거의 정사각(700:706)이라 모달 폭(820px)에 꽉 채우면 높이가 790px가
+   되어 모달보다 커진다 — 지도와 타임라인을 같이 볼 수 없어서 폭을 제한하고 가운데 둔다. */
+.rainstage{position:relative;width:100%;max-width:330px;margin:0 auto;
+  aspect-ratio:700/706;background:var(--mapland)}
+.rainstage>*{position:absolute;inset:0;width:100%;height:100%;display:block}
+.rainstage .sat{object-fit:fill;opacity:.9}
+.rainstage svg{pointer-events:none}
+.rainmsg{position:absolute;inset:auto 0 0 0;top:auto;height:auto;padding:7px 10px;
+  font-size:10.5px;color:var(--ink3);background:linear-gradient(transparent,var(--bg) 55%)}
+.rainbar{display:flex;align-items:center;gap:9px;padding:8px 10px;border-top:1px solid var(--line2)}
+.rainbar button{width:29px;height:29px;flex:none;border-radius:50%;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);cursor:pointer;font-size:11px;line-height:1}
+.rainbar button:hover{border-color:var(--accent);color:var(--accent)}
+.rainclock{font-size:11px;font-variant-numeric:tabular-nums;min-width:104px;line-height:1.3}
+.rainclock b{font-size:13px;display:block}
+.rainclock span{color:var(--ink3);font-size:10px}
+.rainscrub{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rainscrub input{width:100%;accent-color:var(--accent);height:16px;margin:0;cursor:pointer}
+.rainphase{display:flex;height:3px;border-radius:2px;overflow:hidden;background:var(--line2)}
+.rainphase i{display:block}
+.rainphase .pa{background:var(--ink3)}
+.rainphase .pb{background:var(--accent)}
+.rainticks{position:relative;height:11px;font-size:9px;color:var(--ink3);
+  font-variant-numeric:tabular-nums}
+.rainticks span{position:absolute;top:0;white-space:nowrap;transform:translateX(-50%)}
+.rainticks span:first-child{transform:none}
+.rainticks span:last-child{transform:translateX(-100%)}
+.rainlgd{display:flex;align-items:center;gap:6px;padding:0 10px 8px;font-size:9.5px;color:var(--ink3)}
+.rainlgd .ramp{display:flex;height:7px;border-radius:2px;overflow:hidden;flex:1;min-width:80px}
+.rainlgd .ramp i{flex:1}
+
 /* ── Safe-Check ── */
 .rc .ph{width:100%;margin:5px 0 6px;padding:4px 7px;font:inherit;font-size:11px;
   border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink)}
@@ -1272,6 +1306,145 @@ function barChart(vals, labels, opt){
     <text class="cl" x="2" y="${T+ih}">0</text>${bars}</svg>`;
 }
 
+/* ───────── 강수 이동 애니메이션 (상세 모달 안) ─────────
+   과거 = Meteosat 위성 관측 강수(IODC, 15분), 미래 = Open-Meteo 예보 격자(1시간).
+   탄자니아는 공개 기상 레이더가 없어서 과거 구간을 레이더 대신 위성으로 채운다
+   (RainViewer 아프리카 커버리지에 탄자니아 없음 — 직접 확인함).
+
+   두 출처를 한 슬라이더에 이어 붙일 수 있는 이유는 둘 다 같은 양(mm/h)이기 때문이다.
+   위성 쪽을 흔한 적외 구름영상이 아니라 강수율 산출물(h63)로 고른 것도 같은 이유 —
+   구름 온도를 쓰면 "구름은 두꺼운데 비는 안 온다"가 생겨 히트맵 등급과 어긋나 보인다. */
+const RAIN_PAST = 12, RAIN_FUT = 48;          // 과거 12프레임(15분×12=3시간) + 미래 48시간
+const RAIN_LAG_MIN = 45;                      // 위성 산출물 배포 지연(실측 약 40분) 여유
+const RAIN_WMS = "https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.3.0"
+  + "&request=GetMap&crs=EPSG:4326&format=image/png&transparent=true&styles="
+  + "&layers=msg_iodc:h63&width=420&height=424";
+
+let RAINGRID = null;        // /api/rain-grid 응답 캐시(모달을 다시 열어도 재요청 안 함)
+let rainTimer = null;       // 재생 타이머 — 모달을 닫을 때 반드시 정리한다
+
+/* 강수 색 램프 — 20mm/h 이상만 자주색으로 빠지게 해서 '작업중단 임계(일강수 20mm)'와
+   눈으로 연결되게 했다. 목업에서 쓴 것과 같은 배색. */
+const RAIN_STOPS = [[0.1,214,236,246],[1,155,208,232],[2.5,79,163,207],
+                    [5,46,111,168],[10,27,68,112],[20,92,54,130]];
+function rainColor(v){
+  if (v < 0.1) return null;
+  let i = RAIN_STOPS.length - 1;
+  while (i > 0 && v < RAIN_STOPS[i][0]) i--;
+  const a = RAIN_STOPS[i], b = RAIN_STOPS[Math.min(i + 1, RAIN_STOPS.length - 1)];
+  const f = b[0] === a[0] ? 0 : Math.min(1, (v - a[0]) / (b[0] - a[0]));
+  return [Math.round(a[1]+(b[1]-a[1])*f), Math.round(a[2]+(b[2]-a[2])*f), Math.round(a[3]+(b[3]-a[3])*f)];
+}
+
+/* 위성 프레임 시각 — WMS는 15분 격자만 받는다. 지연을 빼고 15분으로 내림한다. */
+function rainSatTime(stepsAgo){
+  const d = new Date(Date.now() - (RAIN_LAG_MIN + stepsAgo * 15) * 60000);
+  d.setUTCSeconds(0, 0);
+  d.setUTCMinutes(Math.floor(d.getUTCMinutes() / 15) * 15);
+  return d;
+}
+
+function initRain(activeName){
+  const stage = $("#rainStage"), cv = $("#rainCv"), sat = $("#rainSat");
+  const msg = $("#rainMsg"), scrub = $("#rainScrub"), play = $("#rainPlay");
+  if (!stage) return;
+  const ctx = cv.getContext("2d");
+
+  /* 지도 윤곽 — 현재 granularity의 경계를 그대로 쓰되, 열려 있는 지역만 강조한다.
+     잔지바르 인셋은 여기선 생략(본토 좌표계 그대로라 인셋은 화면 밖). */
+  $("#rainGeo").innerHTML = areaMap().map(g => {
+    const on = g.name === activeName;
+    return `<path d="${toPath(g.rings, px, py)}" fill="none"
+      stroke="${on ? "var(--accent)" : "var(--mapline)"}" stroke-width="${on ? 2.4 : .7}"
+      stroke-linejoin="round" opacity="${on ? 1 : .55}"/>`;
+  }).join("");
+
+  /* 범례 램프 */
+  $("#rainRamp").innerHTML = Array.from({length:25}, (_,i) => {
+    const c = rainColor(0.1 + Math.pow(i/24, 1.7) * 21) || [214,236,246];
+    return `<i style="background:rgb(${c[0]},${c[1]},${c[2]})"></i>`;
+  }).join("");
+
+  /* 위성 프레임은 미리 받아 둔다 — 프레임당 2~7초 걸려서 슬라이더를 움직인 뒤
+     받기 시작하면 늦다. 브라우저가 알아서 병렬로 처리하고, EUMETSAT이 7일
+     캐시 헤더를 주므로 두 번째부터는 즉시 뜬다. */
+  const satUrl = i => RAIN_WMS + "&bbox=" + [LAT1, LON0, LAT0, LON1].join(",")
+    + "&time=" + rainSatTime(RAIN_PAST - i).toISOString().replace(".000", "");
+  for (let i = 0; i <= RAIN_PAST; i++) new Image().src = satUrl(i);
+
+  let frame = RAIN_PAST, playing = true;
+
+  function drawForecast(hourIdx){
+    const g = RAINGRID;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!g) return;
+    const N = g.n, W = cv.width, H = cv.height;
+    const img = ctx.createImageData(W, H);
+    const at = (i, j) => g.cells[Math.max(0,Math.min(N-1,j)) * N + Math.max(0,Math.min(N-1,i))][hourIdx] ?? 0;
+    for (let y = 0; y < H; y++){
+      const gy = (y + .5) / H * N - .5, j0 = Math.floor(gy), fy = gy - j0;
+      for (let x = 0; x < W; x++){
+        const gx = (x + .5) / W * N - .5, i0 = Math.floor(gx), fx = gx - i0;
+        const v = (at(i0,j0)*(1-fx) + at(i0+1,j0)*fx) * (1-fy)
+                + (at(i0,j0+1)*(1-fx) + at(i0+1,j0+1)*fx) * fy;
+        const c = rainColor(v);
+        if (!c) continue;
+        const p = (y * W + x) * 4;
+        img.data[p] = c[0]; img.data[p+1] = c[1]; img.data[p+2] = c[2]; img.data[p+3] = 230;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function render(){
+    const past = frame < RAIN_PAST;
+    sat.hidden = !past;
+    cv.style.display = past ? "none" : "block";
+
+    if (past){
+      sat.src = satUrl(frame);
+      const t = rainSatTime(RAIN_PAST - frame);
+      const mins = Math.round((Date.now() - t.getTime()) / 60000);
+      $("#rainBig").textContent = t.toLocaleTimeString("ko-KR",
+        {timeZone:TZ, hour:"2-digit", minute:"2-digit", hour12:false});
+      $("#rainSmall").textContent = `${Math.floor(mins/60)}시간 ${mins%60}분 전 · 위성 관측`;
+      msg.textContent = "Meteosat IODC 위성 강수 관측";
+    } else {
+      const h = frame - RAIN_PAST;
+      drawForecast(h);
+      const t = RAINGRID && RAINGRID.time && RAINGRID.time[h];
+      $("#rainBig").textContent = t ? t.slice(11, 16) : "--:--";
+      $("#rainSmall").textContent = (h === 0 ? "현재" : `+${h}시간`)
+        + (t ? ` · ${t.slice(5,7)}/${t.slice(8,10)}` : "") + " 예보";
+      msg.textContent = RAINGRID ? "Open-Meteo 예보 · 약 80km 격자" : "예보 불러오는 중…";
+    }
+    scrub.value = frame;
+  }
+
+  function setPlaying(on){
+    playing = on;
+    play.textContent = on ? "❚❚" : "▶";
+    if (rainTimer){ clearInterval(rainTimer); rainTimer = null; }
+    if (on) rainTimer = setInterval(() => {
+      frame = frame >= RAIN_PAST + RAIN_FUT ? 0 : frame + 1;
+      render();
+    }, 420);
+  }
+
+  play.onclick = () => setPlaying(!playing);
+  scrub.oninput = () => { frame = +scrub.value; if (playing) setPlaying(false); render(); };
+
+  render();
+  setPlaying(true);
+
+  /* 예보 격자는 20KB짜리 서버 함수(/api/rain-grid)를 거친다 — Open-Meteo를 직접
+     부르면 같은 내용이 286KB로 온다(지점마다 메타데이터가 반복되기 때문). */
+  if (RAINGRID) return;
+  fetch("/api/rain-grid").then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+    .then(d => { RAINGRID = d; render(); })
+    .catch(e => { msg.textContent = "예보 격자 로드 실패: " + e.message; });
+}
+
 function detail(name){
   const r = activeRows().find(x => x.name === name);
   if (!r) return;
@@ -1334,6 +1507,34 @@ function detail(name){
           </div>` : ""}
         </div>
 
+        <div class="sect"><h4>강수 이동 — 3시간 전(위성 관측) → 48시간 후(예보)</h4>
+          <div class="rain">
+            <div class="rainstage" id="rainStage">
+              <canvas id="rainCv" width="140" height="141"></canvas>
+              <img class="sat" id="rainSat" alt="" hidden>
+              <svg viewBox="0 0 ${MW} ${MH}" preserveAspectRatio="none" aria-hidden="true">
+                <g id="rainGeo"></g></svg>
+              <div class="rainmsg" id="rainMsg">불러오는 중…</div>
+            </div>
+            <div class="rainbar">
+              <button id="rainPlay" aria-label="재생/일시정지">❚❚</button>
+              <div class="rainclock"><b id="rainBig">--:--</b><span id="rainSmall">&nbsp;</span></div>
+              <div class="rainscrub">
+                <input type="range" id="rainScrub" min="0" max="60" value="12" step="1" aria-label="시간 이동">
+                <div class="rainphase"><i class="pa" style="flex:12"></i><i class="pb" style="flex:48"></i></div>
+                <div class="rainticks"><span style="left:0">−3시간</span>
+                  <span style="left:20%">현재</span><span style="left:60%">+24</span>
+                  <span style="left:100%">+48시간</span></div>
+              </div>
+            </div>
+            <div class="rainlgd"><span>0.1</span><span class="ramp" id="rainRamp"></span><span>20 mm/h↑</span></div>
+          </div>
+          <div class="note2">왼쪽 20%(회색 구간)는 <b>Meteosat 위성이 실제로 관측한 강수</b>(15분 간격),
+            오른쪽은 <b>Open-Meteo 예보</b>(1시간 간격 · 약 80km 격자)입니다. 위성은 지나간 하늘만
+            찍고 예보는 앞만 보므로, 두 구간은 서로 다른 출처의 같은 양(mm/h)을 이어 붙인 것입니다.
+            탄자니아는 기상 레이더가 없어 과거 구간을 위성으로 대체했습니다.</div>
+        </div>
+
         <div class="sect"><h4>7일 예보 — 일별 강수량 (mm)</h4>
           ${barChart(prec, days, {color:"var(--accent)", unit:"mm", dp:1, hide:0.05, alt:"7일 강수 예보"})}
           <div class="facts" style="margin-top:8px">
@@ -1372,12 +1573,19 @@ function detail(name){
     </div>
   </div>`;
 
-  const close = () => { $("#modal").innerHTML = ""; document.removeEventListener("keydown", esc); };
+  /* 모달을 닫을 때 재생 타이머를 반드시 멈춘다 — 안 그러면 DOM이 사라진 뒤에도
+     타이머가 계속 돌면서 없는 엘리먼트를 만지려다 콘솔이 오류로 뒤덮인다. */
+  const close = () => {
+    if (rainTimer){ clearInterval(rainTimer); rainTimer = null; }
+    $("#modal").innerHTML = "";
+    document.removeEventListener("keydown", esc);
+  };
   const esc = e => { if (e.key === "Escape") close(); };
   $("#mclose").onclick = close;
   $("#mask").onclick = e => { if (e.target.id === "mask") close(); };
   document.addEventListener("keydown", esc);
   $("#mclose").focus();
+  initRain(name);
 }
 
 /* ───────── 부팅 ───────── */
