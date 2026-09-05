@@ -273,7 +273,7 @@ tbody tr:hover{background:var(--line2)}
 .hmnorm .nlist span{cursor:pointer}
 .hmnorm .nlist span:hover{color:var(--accent);text-decoration:underline}
 .hmcol{display:grid;grid-template-columns:92px repeat(6,minmax(0,1fr));gap:2px;align-content:start}
-.hmh{font-size:10.5px;color:var(--ink3);text-align:center;padding-bottom:3px}
+.hmh{font-size:10.5px;color:var(--ink3);text-align:center;padding-bottom:3px;white-space:nowrap}
 .hmn{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   cursor:pointer;display:flex;align-items:center}
 .hmn:hover{color:var(--accent);text-decoration:underline}
@@ -286,6 +286,15 @@ tbody tr:hover{background:var(--line2)}
 .hc.l3{background:var(--l3bg);border-color:var(--l3);color:var(--l3);font-weight:700}
 .hc.l4{background:var(--l4bg);border-color:var(--l4);color:var(--l4);font-weight:700}
 .hc.dim{opacity:.22}
+/* 모바일 — 2열 배치를 강제로 1열로. 좁은 화면에 640px 열 2개를 밀어넣으면
+   축 헤더("호우")가 한 글자씩 세로로 쪼개지고 칸 안 숫자도 잘린다. */
+@media(max-width:720px){
+  .hm{grid-template-columns:1fr!important;gap:0;padding:10px}
+  .hmcol{max-width:none;grid-template-columns:74px repeat(6,minmax(0,1fr));gap:3px 2px}
+  .hmh{font-size:9.5px;letter-spacing:-.3px}
+  .hmn{font-size:10.5px}
+  .hc{height:21px;font-size:9.5px}
+}
 
 /* ── 하천 게이지 — 세로선이 '그날의 평년값', 막대가 예보값 ── */
 .gwrap{padding:11px 13px 6px}
@@ -355,7 +364,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 </div>
 
 <div class="grid2">
-  <div class="panel">
+  <div class="panel" id="hmpanel">
     <div class="phead"><h2>주별 상세</h2>
       <span class="note" id="tblnote"></span>
       <span class="seg"><button id="vHeat" class="on">히트맵</button><button id="vTbl">숫자 표</button></span></div>
@@ -405,7 +414,8 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   재해경보 GDACS(EU JRC·UN OCHA) · 행정경계 geoBoundaries ADM1 2018(OCHA, CC BY 3.0 IGO) ·
   지진 USGS · 자연재해 이벤트 NASA EONET. 전부 API 키 없이 공개 호출.<br>
   <b>판정 기준</b> ·
-  호우는 <code>일강수 20/30/50mm</code> 및 <code>7일 누적 ÷ 해당 월 평년강수</code>의 큰 쪽,
+  호우는 <code>일강수 20/30/50mm</code>(절대 강도)와 <code>7일 누적 ÷ 해당 월 평년강수</code>(평년 대비) 중 큰 쪽이되,
+  평년 대비만으로는 등급이 오르지 않고 <b>최소 일강수</b>(주의 10mm·경계 20mm·심각 30mm)를 함께 만족해야 하며,
   폭염은 <code>체감최고 35/38/40℃</code>, 강풍은 <code>돌풍 60/80/100km/h</code>.
   건기 잡음을 막기 위해 평년비는 <b>7일 누적 40mm 이상일 때만</b> 적용하고,
   하천은 <b>같은 날짜의 평년값</b>과 비교하며, 지진 경보는 <b>최근 30일</b> 발생분만 반영합니다.
@@ -471,22 +481,35 @@ const MONTH = nowTZ().getMonth();          // 0-11
 let DATA = null, sortKey = "risk", sortDir = -1, activeAxis = null;
 
 /* ───────── 위험 판정 ───────── */
-/* 호우 — 절대 일강수가 1차 기준. '평년 대비'는 7일 누적이 ABS_FLOOR를 넘을 때만 적용한다.
-   (건기에는 평년값 자체가 작아 12mm만 내려도 평년비 60%가 되므로 잡음이 경보로 올라온다) */
-const ABS_FLOOR = 40;      // mm, 7일 누적
+/* 호우 — 두 갈래로 판정한다.
+   ① 절대 강도(lvAbs) : 7일 예보 중 하루 최대 강수량. 돌발홍수·작업중단의 직접 원인.
+   ② 평년 대비(lvRel) : 7일 누적 ÷ 그 달 평년. "이맘때답지 않게 많이 온다"를 잡는다.
+
+   ②가 단독으로 높은 등급을 만들지 못하도록 각 단계에 최소 일강수 조건을 함께 걸었다.
+   그러지 않으면 9월 평년이 13mm뿐인 Rombo에서 7일 누적 49mm(=196%)가 곧바로 '심각'이
+   되는데, 실제로는 하루 최대 14mm로 안전상 위험한 비가 아니다. 평년 대비는 이상신호이지
+   그 자체로 재해 강도가 아니므로, 절대 강도가 받쳐줄 때만 등급을 끌어올린다. */
+const ABS_FLOOR = 40;      // mm, 7일 누적 — 이 미만이면 평년 대비는 아예 보지 않는다
 function heavyRain(r, d){
   const p = d.precipitation_sum || [];
   const maxD = Math.max(0, ...p.map(v => v ?? 0));
+  const maxIdx = Math.max(0, p.findIndex(v => (v ?? 0) === maxD));
   const acc7 = p.reduce((a,v) => a + (v ?? 0), 0);
   const norm = r.monthly[MONTH] || 1;
   const ratio = acc7 / Math.max(norm, 25);
   const useRatio = acc7 >= ABS_FLOOR;
-  let lv = 0;
-  if (maxD >= 50 || (useRatio && ratio >= 0.80)) lv = 4;
-  else if (maxD >= 30 || (useRatio && ratio >= 0.50)) lv = 3;
-  else if (maxD >= 20 || (useRatio && ratio >= 0.30)) lv = 2;
-  else if (maxD >= 10) lv = 1;
-  return {lv, maxD, acc7, ratio, norm, useRatio};
+
+  const lvAbs = maxD >= 50 ? 4 : maxD >= 30 ? 3 : maxD >= 20 ? 2 : maxD >= 10 ? 1 : 0;
+  let lvRel = 0;
+  if (useRatio){
+    if      (ratio >= 0.80 && maxD >= 30) lvRel = 4;
+    else if (ratio >= 0.80 && maxD >= 20) lvRel = 3;
+    else if (ratio >= 0.50 && maxD >= 10) lvRel = 2;
+    else if (ratio >= 0.30)               lvRel = 1;
+  }
+  const lv = Math.max(lvAbs, lvRel);
+  const by = lv === 0 ? "none" : (lvRel > lvAbs ? "ratio" : "abs");
+  return {lv, maxD, maxIdx, acc7, ratio, norm, useRatio, lvAbs, lvRel, by};
 }
 function heat(d){
   const t = Math.max(0, ...(d.apparent_temperature_max || []).map(v => v ?? 0));
@@ -853,7 +876,16 @@ function render(){
       <div class="v">${v}<span class="u"> ${u}</span></div>
       ${sub?`<div class="sub2">${sub}</div>`:""}</div>`).join("");
   $("#kpis").querySelectorAll(".kpi").forEach(el => {
-    const go = () => { activeAxis = activeAxis === el.dataset.ax ? null : el.dataset.ax; render(); };
+    const go = () => {
+      activeAxis = activeAxis === el.dataset.ax ? null : el.dataset.ax;
+      render();
+      /* 모바일에서는 KPI를 눌러도 필터가 걸린 히트맵이 화면 밖에 있어 아무 일도
+         일어나지 않은 것처럼 보인다. 필터를 켤 때만 해당 패널로 이동한다. */
+      if (activeAxis){
+        const t = document.getElementById("hmpanel");
+        if (t) t.scrollIntoView({behavior:"smooth", block:"start"});
+      }
+    };
     el.onclick = go;
     el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
   });
@@ -1013,9 +1045,18 @@ function renderBrief(rows){
    그대로 옮겼다. 아래 상세와 중복이라 패널을 없앴지만 근거 텍스트 자체는 지우지
    않고 툴팁으로 옮겼다(클릭하면 modal에서 더 자세히 볼 수 있다). */
 function riskWhy(r, ax){
-  if (ax === "호우") return r.rain.useRatio
-    ? `7일 최대 ${r.rain.maxD.toFixed(0)}mm · 누적 ${r.rain.acc7.toFixed(0)}mm = ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 ${(r.rain.ratio*100).toFixed(0)}%`
-    : `7일 최대 ${r.rain.maxD.toFixed(0)}mm · 누적 ${r.rain.acc7.toFixed(0)}mm`;
+  if (ax === "호우"){
+    /* 등급이 '오늘'이 아니라 7일 예보에서 나온다는 점, 그리고 절대 강도와 평년 대비 중
+       무엇이 등급을 만들었는지를 함께 보여준다. */
+    const pk = (r.d && r.d.time) ? r.d.time[r.rain.maxIdx] : null;
+    const td = (r.d && r.d.precipitation_sum && r.d.precipitation_sum[0]) || 0;
+    const head = `최대 ${r.rain.maxD.toFixed(0)}mm` + (pk ? ` (${shortDate(pk)})` : "")
+      + ` · 오늘 ${td.toFixed(0)}mm · 7일 누적 ${r.rain.acc7.toFixed(0)}mm`;
+    return r.rain.useRatio
+      ? head + ` = ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 ${(r.rain.ratio*100).toFixed(0)}%`
+             + (r.rain.by === "ratio" ? " ← 평년 대비가 등급을 결정" : "")
+      : head;
+  }
   if (ax === "폭염") return `체감최고 ${r.ht.t.toFixed(1)}℃ (기온 ${r.ht.a.toFixed(1)}℃)`;
   if (ax === "강풍") return `최대돌풍 ${r.gu.g.toFixed(0)}km/h`;
   if (ax === "산불") return `반경 내 GDACS 산불 ${r.nwf}건`;
@@ -1054,7 +1095,7 @@ function renderHeatmap(rows){
     wireHm();
     return;
   }
-  const twoCol = warn.length > 12;
+  const twoCol = warn.length > 12 && window.matchMedia("(min-width:721px)").matches;
   $("#hm").style.gridTemplateColumns = twoCol ? "repeat(2,minmax(0,640px))" : "minmax(0,640px)";
   const col = list => `<div class="hmcol"><span class="hmh"></span>`
     + AX6.map(a => `<span class="hmh">${a}</span>`).join("")
@@ -1081,6 +1122,12 @@ function normSummary(normal){
 function wireHm(){
   $("#hm").querySelectorAll("[data-n]").forEach(el => el.onclick = () => detail(el.dataset.n));
 }
+/* 화면 회전·크기 변경으로 720px 경계를 넘을 때만 다시 그린다(히트맵 1열 ↔ 2열). */
+let _narrow = window.matchMedia("(max-width:720px)").matches;
+window.addEventListener("resize", () => {
+  const n = window.matchMedia("(max-width:720px)").matches;
+  if (n !== _narrow){ _narrow = n; if (DATA) render(); }
+});
 let tblView = "heat";
 function setTblView(v){
   tblView = v;
@@ -1278,6 +1325,12 @@ function detail(name){
           ${(r.axes.하천 >= 2 && r.riverWhen) ? `<div class="note2" style="margin-top:6px">
             하천 등급은 14일 예보 중 <b>${josa(r.riverWhen.name, "이", "가")}</b> 가장 불어나는 날(${shortDate(r.riverWhen.peakDay)}) 기준입니다.
             오늘(${shortDate(r.d.time?.[0])}) 현재는 평년의 ${r.riverWhen.mean ? (r.riverWhen.cur / r.riverWhen.mean).toFixed(2) : "-"}배로 정상 범위입니다.
+          </div>` : ""}
+          ${(r.axes.호우 >= 2 && r.d.time) ? `<div class="note2" style="margin-top:6px">
+            ${r.rain.by === "ratio"
+              ? `호우 등급은 <b>7일 누적 ${r.rain.acc7.toFixed(0)}mm가 ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 ${(r.rain.ratio*100).toFixed(0)}%</b>라는 점에서 나왔습니다. 하루 최대는 ${r.rain.maxD.toFixed(1)}mm(${shortDate(r.d.time[r.rain.maxIdx])})로, 절대 강수량만 보면 <b>${LV[r.rain.lvAbs]}</b> 수준입니다.`
+              : `호우 등급은 7일 예보 중 <b>가장 많이 오는 날(${shortDate(r.d.time[r.rain.maxIdx])})의 ${r.rain.maxD.toFixed(1)}mm</b>를 기준으로 합니다.`}
+            오늘(${shortDate(r.d.time[0])})은 ${(r.d.precipitation_sum?.[0] ?? 0).toFixed(1)}mm입니다 — 아래 막대그래프에서 확인하세요.
           </div>` : ""}
         </div>
 

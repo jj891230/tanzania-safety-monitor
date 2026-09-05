@@ -19,6 +19,9 @@ function nowTZMonth() {
   return parseInt(s, 10) - 1; // 0-11
 }
 
+// index.html의 heavyRain과 판정식이 반드시 같아야 한다 — 한쪽만 고치면
+// 대시보드는 '주의'인데 경보 메일은 '심각'으로 나가 신뢰를 잃는다.
+// 평년 대비(lvRel)는 절대 강도가 받쳐줄 때만 등급을 올린다(최소 일강수 조건).
 function heavyRain(region, daily) {
   const p = daily.precipitation_sum || [];
   const maxD = Math.max(0, ...p.map((v) => v ?? 0));
@@ -26,12 +29,18 @@ function heavyRain(region, daily) {
   const norm = region.monthly[nowTZMonth()] || 1;
   const ratio = acc7 / Math.max(norm, 25);
   const useRatio = acc7 >= ABS_FLOOR;
-  let lv = 0;
-  if (maxD >= 50 || (useRatio && ratio >= 0.8)) lv = 4;
-  else if (maxD >= 30 || (useRatio && ratio >= 0.5)) lv = 3;
-  else if (maxD >= 20 || (useRatio && ratio >= 0.3)) lv = 2;
-  else if (maxD >= 10) lv = 1;
-  return { lv, maxD, acc7, ratio, useRatio };
+
+  const lvAbs = maxD >= 50 ? 4 : maxD >= 30 ? 3 : maxD >= 20 ? 2 : maxD >= 10 ? 1 : 0;
+  let lvRel = 0;
+  if (useRatio) {
+    if (ratio >= 0.8 && maxD >= 30) lvRel = 4;
+    else if (ratio >= 0.8 && maxD >= 20) lvRel = 3;
+    else if (ratio >= 0.5 && maxD >= 10) lvRel = 2;
+    else if (ratio >= 0.3) lvRel = 1;
+  }
+  const lv = Math.max(lvAbs, lvRel);
+  const by = lv === 0 ? "none" : lvRel > lvAbs ? "ratio" : "abs";
+  return { lv, maxD, acc7, ratio, useRatio, lvAbs, lvRel, by };
 }
 function heat(daily) {
   const t = Math.max(0, ...(daily.apparent_temperature_max || []).map((v) => v ?? 0));
