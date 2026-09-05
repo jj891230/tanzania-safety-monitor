@@ -104,12 +104,19 @@ svg.map{width:100%;height:auto;display:block}
    그래도 좁다는 재피드백에 왼쪽으로 더 확장했다(오른쪽 여백을 더 늘린 게 아니라
    왼쪽 시작점을 당겨온 것 — 오른쪽 끝은 그대로 두고 폭만 넓힘). 마라·아루샤·
    킬리만자로 주의 최북단 좌표를 실제로 계산해서, 이 위치까지 당겨와도 폴리곤과
-   겹치지 않는 것을 확인한 값이다(가장 가까운 폴리곤 점까지 세로로 약 55px 여유). */
+   겹치지 않는 것을 확인한 값이다(가장 가까운 폴리곤 점까지 세로로 약 55px 여유).
+
+   그런데 오른쪽 끝이 잔지바르 인셋 박스보다 더 오른쪽으로 튀어나가 있었다 —
+   인셋 테두리를 넘지 말아야 한다는 피드백에 오른쪽 끝을 인셋 박스의 오른쪽
+   끝(x=904, CW=960 기준 94.17%)에 맞춰 폭을 줄였다(왼쪽 시작점은 그대로).
+   위아래 여백도 과하다는 지적에 justify-content를 center에서 flex-start로
+   바꾸고(헤드라인이 짧을 때 남는 공간이 위아래로 나뉘지 않고 아래로만 모이게)
+   박스 높이도 줄였다. */
 .mapwrap{position:relative}
-.mapticker{position:absolute;left:54.4%;top:2.3%;width:45%;height:17%;
+.mapticker{position:absolute;left:54.4%;top:3.9%;width:39.8%;height:14%;
   container-type:inline-size;
-  display:flex;flex-direction:column;justify-content:center;gap:clamp(2px,1.8cqw,5px);
-  padding:clamp(4px,2.8cqw,8px) clamp(6px,3.8cqw,10px);border-radius:clamp(4px,2.4cqw,7px);
+  display:flex;flex-direction:column;justify-content:flex-start;gap:clamp(2px,1.8cqw,5px);
+  padding:clamp(4px,2.4cqw,7px) clamp(6px,3.8cqw,10px);border-radius:clamp(4px,2.4cqw,7px);
   border:1px solid var(--line);overflow:hidden}
 .mapticker .mt-head{font-size:clamp(7px,4cqw,10px);font-weight:700;color:var(--ink3);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
