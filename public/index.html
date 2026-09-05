@@ -25,10 +25,10 @@
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Malgun Gothic","맑은 고딕",-apple-system,"Segoe UI",Roboto,sans-serif;
   font-size:13px;line-height:1.5}
-/* 1180px는 넓은 모니터에서 양옆에 큰 빈 여백을 남긴다(사용자 스크린샷으로 확인) —
-   1600px로 넓혀 화면을 더 채운다. .grid2 등 반응형 분기는 뷰포트 폭 기준이라
-   이 값을 바꿔도 좁은 화면 동작에는 영향이 없다. */
-.wrap{max-width:1600px;margin:0 auto;padding:14px}
+/* 1600px로 넓혀봤다가 "양옆으로 뚱뚱해져서 부담스럽다"는 피드백에 되돌림 —
+   사용자가 말한 "여백"은 페이지 바깥 여백이 아니라 위험지도 패널 안쪽,
+   본토 지도와 뉴스 티커 사이의 빈 공간이었다(아래 .mapticker 참고). */
+.wrap{max-width:1180px;margin:0 auto;padding:14px}
 
 /* ── header ── */
 header{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
@@ -114,9 +114,15 @@ svg.map{width:100%;height:auto;display:block}
    끝(x=904, CW=960 기준 94.17%)에 맞춰 폭을 줄였다(왼쪽 시작점은 그대로).
    위아래 여백도 과하다는 지적에 justify-content를 center에서 flex-start로
    바꾸고(헤드라인이 짧을 때 남는 공간이 위아래로 나뉘지 않고 아래로만 모이게)
-   박스 높이도 줄였다. */
+   박스 높이도 줄였다.
+
+   그런데 이번엔 본토 지도(아루샤 주 부근)와 티커 왼쪽 끝 사이에 빈 공간이 남는다는
+   지적을 받았다 — "여백"이 페이지 바깥이 아니라 이 안쪽 공간을 가리킨 것이었다.
+   티커가 차지하는 세로 구간(y<124.5)에서 폴리곤이 실제로 도달하는 가장 오른쪽
+   지점을 계산해보니 아루샤 주가 x=491.2까지 뻗어 있어서, 10px 여유만 두고
+   x=501.2(52.2%)까지 왼쪽 끝을 당겼다(오른쪽 끝은 인셋 경계에 그대로 고정). */
 .mapwrap{position:relative}
-.mapticker{position:absolute;left:54.4%;top:3.9%;width:39.8%;height:14%;
+.mapticker{position:absolute;left:52.2%;top:3.9%;width:42%;height:14%;
   container-type:inline-size;
   display:flex;flex-direction:column;justify-content:flex-start;gap:clamp(2px,1.8cqw,5px);
   padding:clamp(4px,2.4cqw,7px) clamp(6px,3.8cqw,10px);border-radius:clamp(4px,2.4cqw,7px);
