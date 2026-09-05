@@ -44,7 +44,7 @@ button:hover{border-color:var(--accent);color:var(--accent)}
 
 /* ── layout ── */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:12px}
-.phead{display:flex;align-items:center;gap:9px;padding:9px 13px;border-bottom:1px solid var(--line2)}
+.phead{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:9px 13px;border-bottom:1px solid var(--line2)}
 .phead h2{margin:0;font-size:13px;font-weight:700}
 .phead .note{color:var(--ink3);font-size:11px;font-weight:400}
 .pbody{padding:12px 13px}
@@ -78,7 +78,7 @@ svg.map{width:100%;height:auto;display:block}
 .lb.prj{fill:var(--ink);font-weight:700}
 .lb.sm{font-size:9.4px}
 .lb.ttl{font-size:10.5px;fill:var(--ink3);font-weight:700;stroke:none;text-anchor:start}
-.legend{display:flex;gap:12px;flex-wrap:wrap;padding:9px 13px 2px;font-size:11px;color:var(--ink2)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--ink2)}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:4px;vertical-align:-1px;
   border:1px solid var(--mapline)}
 
@@ -267,15 +267,15 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 
 <div class="panel">
   <div class="phead"><h2>전국 위험지도</h2>
-    <span class="note" id="maplegend"></span></div>
-  <div id="mapbox"></div>
-  <div class="legend">
-    <span><i style="background:var(--mapland)"></i>정상</span>
-    <span><i style="background:var(--l1);opacity:.5"></i>관심</span><span><i style="background:var(--l2);opacity:.75"></i>주의</span>
-    <span><i style="background:var(--l3);opacity:.85"></i>경계</span>
-    <span><i style="background:var(--l4)"></i>심각</span>
-    <span style="color:var(--ink3)">주 클릭 시 상세 · 세부 사유는 아래 주별 상세에</span>
+    <span class="note" id="maplegend"></span>
+    <span class="legend">
+      <span><i style="background:var(--mapland)"></i>정상</span>
+      <span><i style="background:var(--l1);opacity:.5"></i>관심</span><span><i style="background:var(--l2);opacity:.75"></i>주의</span>
+      <span><i style="background:var(--l3);opacity:.85"></i>경계</span>
+      <span><i style="background:var(--l4)"></i>심각</span>
+    </span>
   </div>
+  <div id="mapbox"></div>
 </div>
 
 <div class="grid2">
