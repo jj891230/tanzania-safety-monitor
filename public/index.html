@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>탄자니아 ODA 기후·재난 안전 모니터</title>
+<title>탄자니아 기후·재난 안전 모니터</title>
 <meta name="robots" content="noindex">
 <meta name="description" content="KOICA 탄자니아사무소 사업수행기관 대상 기후·재난 안전 현황">
 <style>
@@ -99,9 +99,14 @@ svg.map{width:100%;height:auto;display:block}
    커지는 것도 막는다.
 
    처음에는 한 줄 말줄임이었는데 "제목이 거의 안 보인다"는 피드백을 받아 폭을
-   넓히고(PAD 214->260, 위 참고) 2줄까지 보이도록 바꿨다. */
+   넓히고(PAD 214->260, 위 참고) 2줄까지 보이도록 바꿨다.
+
+   그래도 좁다는 재피드백에 왼쪽으로 더 확장했다(오른쪽 여백을 더 늘린 게 아니라
+   왼쪽 시작점을 당겨온 것 — 오른쪽 끝은 그대로 두고 폭만 넓힘). 마라·아루샤·
+   킬리만자로 주의 최북단 좌표를 실제로 계산해서, 이 위치까지 당겨와도 폴리곤과
+   겹치지 않는 것을 확인한 값이다(가장 가까운 폴리곤 점까지 세로로 약 55px 여유). */
 .mapwrap{position:relative}
-.mapticker{position:absolute;left:72.9%;top:2.3%;width:26.5%;height:17%;
+.mapticker{position:absolute;left:54.4%;top:2.3%;width:45%;height:17%;
   container-type:inline-size;
   display:flex;flex-direction:column;justify-content:center;gap:clamp(2px,1.8cqw,5px);
   padding:clamp(4px,2.8cqw,8px) clamp(6px,3.8cqw,10px);border-radius:clamp(4px,2.4cqw,7px);
@@ -289,7 +294,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 
 <header>
   <div>
-    <h1>탄자니아 ODA 기후·재난 안전 모니터</h1>
+    <h1>탄자니아 기후·재난 안전 모니터</h1>
     <div class="sub" id="subtitle"></div>
   </div>
   <div class="hspace"></div>
