@@ -254,6 +254,9 @@ tbody tr:hover{background:var(--line2)}
 .rainstage{position:relative;width:100%;max-width:330px;margin:0 auto;
   aspect-ratio:700/706;background:var(--mapland)}
 .rainstage>*{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* 위 규칙의 display:block이 hidden 속성의 기본 display:none을 덮어써서, 예보 구간에서도
+   위성 영상이 아래에 남아 두 겹으로 보였다(실제 화면에서 발견). 명시적으로 되돌린다. */
+.rainstage>[hidden]{display:none}
 .rainstage .sat{object-fit:fill;opacity:.9}
 .rainstage svg{pointer-events:none}
 .rainmsg{position:absolute;inset:auto 0 0 0;top:auto;height:auto;padding:7px 10px;
@@ -1442,7 +1445,8 @@ function initRain(activeName){
   function drawRamp(){
     $("#rainRamp").innerHTML = Array.from({length:25}, (_,i) => {
       if (mode === "cloud"){
-        const g = Math.round(35 + (i/24) * 215);
+        /* 맑음(밝음) → 두꺼운 구름(어두움). 화면에서 구름이 음영으로 덮이는 방향과 일치. */
+        const g = Math.round(238 - (i/24) * 193);
         return `<i style="background:rgb(${g},${g},${g})"></i>`;
       }
       const c = rainColor(0.1 + Math.pow(i/24, 1.7) * 21) || [214,236,246];
@@ -1468,13 +1472,13 @@ function initRain(activeName){
                 + (at(i0,j0+1)*(1-fx) + at(i0+1,j0+1)*fx) * fy;
         const p = (y * W + x) * 4;
         if (cloud){
-          /* 운량 — 위성 적외 영상과 같은 회색조로 맞춰서, 모드를 바꿔도 같은
-             "구름이 밝다"는 읽기 방식이 유지되게 한다. 30% 미만은 안 그린다. */
+          /* 운량 — 위성 쪽을 반전해서 "구름=어두운 음영"으로 통일했으므로 예보도
+             같은 방향으로 그린다(구름이 많을수록 진해짐). 30% 미만은 안 그린다. */
           if (v < 30) continue;
           const t = Math.min(1, (v - 30) / 70);
-          const gray = Math.round(60 + t * 190);
+          const gray = Math.round(150 - t * 105);
           img.data[p] = gray; img.data[p+1] = gray; img.data[p+2] = gray;
-          img.data[p+3] = Math.round(70 + t * 160);
+          img.data[p+3] = Math.round(45 + t * 135);
         } else {
           const c = rainColor(v);
           if (!c) continue;
@@ -1521,9 +1525,12 @@ function initRain(activeName){
     $("#rainLgdA").textContent = M.lgdA;
     $("#rainLgdB").textContent = M.lgdB;
     $("#rainNote").innerHTML = M.note;
-    /* 구름 영상은 화면을 꽉 채우는 회색조라 밝은 지도 배경 위에서 대비가 죽는다.
-       위성 방송 화면처럼 무대 배경을 어둡게 깔아 준다. */
-    stage.style.background = m === "cloud" ? "#12171c" : "";
+    /* 적외 영상은 원본이 "구름=흰색, 지면=검정"이라 처음엔 무대를 어둡게 깔았는데,
+       대시보드의 다른 화면과 따로 놀고 구름 아래 어느 주인지도 안 보였다(사용자 지적).
+       대신 영상을 반전(구름=어둡게)해서 multiply로 지도에 얹는다 — 밝은 지도는 그대로
+       두고 구름만 회색 음영으로 덮이므로, 어느 지역이 구름 아래인지 바로 읽힌다. */
+    sat.style.filter = m === "cloud" ? "invert(1) contrast(1.25)" : "";
+    sat.style.mixBlendMode = m === "cloud" ? "multiply" : "";
     drawRamp();
     render();
   }
