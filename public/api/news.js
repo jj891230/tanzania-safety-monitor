@@ -166,11 +166,18 @@ const FOREIGN_TERMS = [
   "burundi", "congo", "congolese", "drc", "zambia", "malawi", "mozambique", "somalia",
   "ethiopia", "ethiopian", "eritrea", "sudan", "nigeria", "nigerian", "ghana", "niger",
   "south africa", "zimbabwe", "egypt", "libya", "mali", "senegal", "cameroon", "chad",
+  "botswana", "namibia", "angola", "lesotho", "eswatini", "gabon", "gambia",
+  "sierra leone", "liberia", "guinea", "ivory coast", "cote d'ivoire", "benin",
+  "togo", "burkina faso", "mauritania", "tunisia", "algeria", "morocco", "sudan",
   "iran", "israel", "gaza", "lebanon", "hezbollah", "ukraine", "russia", "moscow",
   "china", "chinese", "india", "pakistan", "afghanistan", "syria", "yemen", "iraq",
   "united states", "u.s.", "america", "american", "trump", "washington", "britain",
   "uk ", "london", "france", "paris", "germany", "europe", "european union",
-  "brazil", "mexico", "japan", "korea", "philippines", "indonesia", "myanmar",
+  "brazil", "mexico", "argentina", "chile", "colombia", "venezuela", "bolivia",
+  "peru", "ecuador", "cuba", "canada", "australia",
+  "japan", "korea", "philippines", "indonesia", "myanmar", "thailand", "vietnam",
+  "malaysia", "singapore", "bangladesh", "nepal", "sri lanka", "turkey", "poland",
+  "spain", "italy", "netherlands", "sweden", "norway", "belgium",
 ];
 
 function isTanzaniaRelated(title) {
