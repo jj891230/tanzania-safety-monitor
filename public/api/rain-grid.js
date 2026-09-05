@@ -48,7 +48,9 @@ module.exports = async (req, res) => {
   const url =
     "https://api.open-meteo.com/v1/forecast?latitude=" + lats.join(",") +
     "&longitude=" + lons.join(",") +
-    "&hourly=precipitation&forecast_days=" + (Math.ceil(HOURS / 24) + 1) +
+    // 강수와 운량을 같이 받는다 — 화면에서 "강수/구름" 모드를 전환할 때 재요청이
+    // 없도록. 둘을 합쳐도 슬림화 후 40KB대라 한 번에 받는 편이 낫다.
+    "&hourly=precipitation,cloud_cover&forecast_days=" + (Math.ceil(HOURS / 24) + 1) +
     "&timezone=" + encodeURIComponent(TZ);
 
   let raw;
@@ -86,6 +88,12 @@ module.exports = async (req, res) => {
       .slice(start, start + HOURS)
       .map((v) => (v == null ? 0 : Math.round(v * 10) / 10))
   );
+  // 운량은 % 정수라 그대로.
+  const clouds = list.map((p) =>
+    ((p.hourly && p.hourly.cloud_cover) || [])
+      .slice(start, start + HOURS)
+      .map((v) => (v == null ? 0 : Math.round(v)))
+  );
 
   // 10분 CDN 캐시 + 만료 후 1시간까지는 옛 값을 쓰면서 뒤에서 갱신(SWR).
   // 예보는 시간당 한 번 바뀌므로 이 정도면 원본 호출이 거의 안 나간다.
@@ -95,6 +103,7 @@ module.exports = async (req, res) => {
     bbox: { lon0: LON0, lon1: LON1, lat0: LAT0, lat1: LAT1 },
     n: N,
     time,
-    cells,
+    cells,   // 강수 mm/h
+    clouds,  // 운량 %
   });
 };
