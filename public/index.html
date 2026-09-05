@@ -25,7 +25,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Malgun Gothic","맑은 고딕",-apple-system,"Segoe UI",Roboto,sans-serif;
   font-size:13px;line-height:1.5}
-.wrap{max-width:1440px;margin:0 auto;padding:14px}
+.wrap{max-width:1180px;margin:0 auto;padding:14px}
 
 /* ── header ── */
 header{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
@@ -173,6 +173,75 @@ tbody tr:hover{background:var(--line2)}
 .chk.wa{background:#25d366;border-color:#1da851;color:#08331c;font-weight:700}
 .chk.yes.on{background:var(--l1bg);border-color:var(--l1);color:var(--l1);font-weight:700}
 .chk.no.on{background:var(--l4bg);border-color:var(--l4);color:var(--l4);font-weight:700}
+/* ── 한 줄 브리핑 ── */
+.brief{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--panel);
+  border:1px solid var(--line);border-left:4px solid var(--l0);border-radius:7px;
+  padding:10px 13px;margin-bottom:12px;font-size:13px;color:var(--ink2)}
+.brief.lv1{border-left-color:var(--l1)} .brief.lv2{border-left-color:var(--l2)}
+.brief.lv3{border-left-color:var(--l3)} .brief.lv4{border-left-color:var(--l4)}
+.brief .em{color:var(--ink);font-weight:700}
+.brief .em2{color:var(--accent);font-weight:700}
+
+/* ── 보기 전환(히트맵/숫자 표) ── */
+.seg{display:flex;margin-left:auto}
+.seg button{border-radius:0;padding:3px 9px;font-size:11px;border-right-width:0}
+.seg button:first-child{border-radius:5px 0 0 5px}
+.seg button:last-child{border-radius:0 5px 5px 0;border-right-width:1px}
+.seg button.on{background:var(--accent2);border-color:var(--accent);color:var(--accent);font-weight:700}
+
+/* ── 위험 히트맵 — 31개 주 × 6개 축. 정상 칸은 비워 두고 임계 근접 칸에만 색과 수치 ── */
+.hm{display:grid;gap:0 24px;padding:11px 13px;align-items:start}
+.hmcol{width:100%;max-width:760px}
+.hmnorm{grid-column:1/-1;margin-top:2px;border-top:1px solid var(--line2);padding-top:9px}
+.hmnorm summary{cursor:pointer;font-size:11.5px;color:var(--ink3);list-style:none;user-select:none}
+.hmnorm summary::-webkit-details-marker{display:none}
+.hmnorm summary::before{content:"▸ ";display:inline-block}
+.hmnorm[open] summary::before{content:"▾ "}
+.hmnorm .nlist{margin-top:7px;font-size:11.5px;line-height:1.9;color:var(--ink3)}
+.hmnorm .nlist span{cursor:pointer}
+.hmnorm .nlist span:hover{color:var(--accent);text-decoration:underline}
+.hmcol{display:grid;grid-template-columns:92px repeat(6,minmax(0,1fr));gap:2px;align-content:start}
+.hmh{font-size:10.5px;color:var(--ink3);text-align:center;padding-bottom:3px}
+.hmn{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  cursor:pointer;display:flex;align-items:center}
+.hmn:hover{color:var(--accent);text-decoration:underline}
+.hmn.prj{color:var(--accent);font-weight:700}
+.hc{height:18px;border-radius:3px;background:var(--line2);border:1px solid var(--line);
+  font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  font-variant-numeric:tabular-nums;overflow:hidden}
+.hc.l1{background:var(--l1bg);border-color:var(--l1);color:var(--l1)}
+.hc.l2{background:var(--l2bg);border-color:var(--l2);color:var(--l2);font-weight:700}
+.hc.l3{background:var(--l3bg);border-color:var(--l3);color:var(--l3);font-weight:700}
+.hc.l4{background:var(--l4bg);border-color:var(--l4);color:var(--l4);font-weight:700}
+.hc.dim{opacity:.22}
+
+/* ── 하천 게이지 — 세로선이 '그날의 평년값', 막대가 예보값 ── */
+.gwrap{padding:11px 13px 6px}
+.grow{display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,2.4fr) 74px;
+  gap:10px;align-items:center;margin-bottom:9px}
+.grow .gn{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grow .gd{font-size:10.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gbar{position:relative;height:17px;background:var(--line2);border:1px solid var(--line);border-radius:4px}
+.gfill{position:absolute;left:0;top:0;bottom:0;border-radius:3px 0 0 3px;background:var(--mapline)}
+.gfill.l1{background:var(--l1)} .gfill.l2{background:var(--l2)} .gfill.l3{background:var(--l3)} .gfill.l4{background:var(--l4)}
+.gval.hi{color:var(--l1)} .gval.l2{color:var(--l2)} .gval.l3{color:var(--l3)} .gval.l4{color:var(--l4)}
+.gbase{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink2)}
+.gval{text-align:right;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.gval span{display:block;font-size:10px;color:var(--ink3);font-weight:400}
+.gaxis{display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,2.4fr) 74px;gap:10px;
+  font-size:10px;color:var(--ink3)}
+
+/* ── 지진 요약 ── */
+.eqhero{display:flex;align-items:baseline;gap:7px}
+.eqhero .n{font-size:27px;font-weight:700;letter-spacing:-.5px}
+.eqspark{display:flex;align-items:flex-end;gap:3px;height:34px;margin:10px 0 3px;max-width:460px}
+.eqspark i{flex:1;display:block;background:var(--line);border-radius:2px 2px 0 0}
+.eqspark i.on{background:var(--mapline)}
+.eqspark i.hot{background:var(--l2)}
+.eqlbl{max-width:460px}
+.alist.cols2{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:0 8px;align-content:start}
+.eqlbl{display:flex;justify-content:space-between;font-size:10px;color:var(--ink3)}
 footer{color:var(--ink3);font-size:11px;line-height:1.7;padding:10px 2px 24px}
 footer b{color:var(--ink2)}
 code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
@@ -193,37 +262,29 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 </header>
 
 <div class="banner" id="banner"></div>
+<div class="brief" id="brief"></div>
 <div class="kpis" id="kpis"></div>
 
-<div class="grid2">
-  <div class="panel">
-    <div class="phead"><h2>전국 위험지도</h2>
-      <span class="note" id="maplegend"></span></div>
-    <div id="mapbox"></div>
-    <div class="legend">
-      <span><i style="background:var(--mapland)"></i>정상</span>
-      <span><i style="background:var(--l1);opacity:.5"></i>관심</span><span><i style="background:var(--l2);opacity:.75"></i>주의</span>
-      <span><i style="background:var(--l3);opacity:.85"></i>경계</span>
-      <span><i style="background:var(--l4)"></i>심각</span>
-      <span style="color:var(--ink3)">주 클릭 시 상세</span>
-    </div>
-  </div>
-  <div class="panel">
-    <div class="phead"><h2>현재 경보</h2><span class="note" id="alcount"></span></div>
-    <div class="pbody"><div class="alist" id="alerts"></div></div>
-  </div>
-</div>
-
 <div class="panel">
-  <div class="phead"><h2>주별 상세</h2>
-    <span class="note">평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬</span></div>
-  <div class="scroll" style="max-height:480px"><table id="tbl"></table></div>
+  <div class="phead"><h2>전국 위험지도</h2>
+    <span class="note" id="maplegend"></span></div>
+  <div id="mapbox"></div>
+  <div class="legend">
+    <span><i style="background:var(--mapland)"></i>정상</span>
+    <span><i style="background:var(--l1);opacity:.5"></i>관심</span><span><i style="background:var(--l2);opacity:.75"></i>주의</span>
+    <span><i style="background:var(--l3);opacity:.85"></i>경계</span>
+    <span><i style="background:var(--l4)"></i>심각</span>
+    <span style="color:var(--ink3)">주 클릭 시 상세 · 세부 사유는 아래 주별 상세에</span>
+  </div>
 </div>
 
 <div class="grid2">
   <div class="panel">
-    <div class="phead"><h2>주요 하천 유량</h2><span class="note">GloFAS · 평년 대비</span></div>
-    <div class="scroll"><table id="rtbl"></table></div>
+    <div class="phead"><h2>주별 상세</h2>
+      <span class="note" id="tblnote"></span>
+      <span class="seg"><button id="vHeat" class="on">히트맵</button><button id="vTbl">숫자 표</button></span></div>
+    <div class="hm" id="hm"></div>
+    <div class="scroll" id="tblbox" style="max-height:480px;display:none"><table id="tbl"></table></div>
   </div>
   <div class="panel">
     <div class="phead"><h2>GDACS 활성 재해</h2><span class="note" id="gcount"></span></div>
@@ -232,12 +293,22 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 </div>
 
 <div class="grid2">
-
   <div class="panel">
-    <div class="phead"><h2>최근 지진</h2><span class="note">USGS · 최근 1년 M4.0↑</span></div>
-    <div class="pbody"><div class="alist" style="max-height:280px" id="quakes"></div></div>
+    <div class="phead"><h2>주요 하천 유량</h2>
+      <span class="note">GloFAS · 세로선 = 그날의 평년값</span>
+      <span class="seg"><button id="vGauge" class="on">게이지</button><button id="vRtbl">숫자 표</button></span></div>
+    <div class="gwrap" id="rgauge"></div>
+    <div class="scroll" id="rtblbox" style="display:none"><table id="rtbl"></table></div>
+  </div>
+  <div class="panel">
+    <div class="phead"><h2>최근 지진</h2>
+      <span class="note">USGS · M4.0↑ · 경보는 최근 30일만 반영</span></div>
+    <div class="pbody" id="eqsum"></div>
+    <div class="pbody" style="padding-top:2px"><div class="alist" style="max-height:212px" id="quakes"></div></div>
   </div>
 </div>
+
+
 
 <div class="panel">
   <div class="phead"><h2>탄자니아 안전 관련 뉴스</h2><span class="note" id="newsNote">allAfrica · 안전 키워드 필터링</span></div>
@@ -288,6 +359,8 @@ const SEED_ROSTER = [];
 
 
 /* 주별 파견인력 집계 — 지도의 강조 테두리는 '사업 소재지'가 아니라 '인력 배치'를 뜻한다 */
+
+
 const STAFF = {};
 SEED_ROSTER.forEach(p => {
   const t = STAFF[p.region] || (STAFF[p.region] = {n:0, live:0, items:[]});
@@ -541,33 +614,41 @@ function toPath(rings, fx, fy){
 function drawMap(rows){
   const by = Object.fromEntries(rows.map(r => [r.name, r]));
 
-  const shape = (g, fx, fy, thin) => {
+  const isMark = g => IS_PUBLIC ? !!(by[g.name]||{}).project : !!STAFF[g.name];
+
+  /* 채우기+기본(얇은) 테두리만 먼저 그린다. 굵은 강조 테두리는 여기서 같이 그리지
+     않는다 — 인접한 두 폴리곤이 경계 좌표를 공유하는데, 나중에 그려지는 쪽이 그
+     공유 변 위에 덮인다. 사업 소재지 바로 다음 순서로 비사업지가 그려지면 공유
+     변만 얇은 선으로 덮여 같은 주인데 테두리가 굵다/얇다 섞여 보인다(시미유 사례).
+     그래서 굵은 강조선은 채우기가 다 끝난 뒤 별도 레이어로 한 번 더 그려서
+     그리는 순서와 무관하게 항상 맨 위에 오게 한다. */
+  const shape = (g, fx, fy) => {
     const r = by[g.name] || {risk:0};
-    const st = STAFF[g.name];
-    const mark = IS_PUBLIC ? !!r.project : !!st;   // 공개판=사업 소재지 / 내부판=인력 배치
     const on = !activeAxis || (r.axes && r.axes[activeAxis] >= 2);   // 축 필터
-    const sw = mark ? (thin ? 1.0 : 1.6) : (thin ? .5 : .7);
-    const sc = mark ? "var(--accent)" : "var(--mapline)";
+    const st = STAFF[g.name];
     const tip = [g.name,
       st ? `파견인력 ${st.n}명${st.live < st.n ? ` (상주 ${st.live})` : ""}` : null,
       r.project || null, LV[r.risk]].filter(Boolean).join(" · ");
     return `<path class="rg${on ? "" : " off"}" data-n="${g.name}" d="${toPath(g.rings, fx, fy)}"
-      fill="${FILL[r.risk]}" fill-opacity="${FOP[r.risk]}" stroke="${sc}" stroke-width="${sw}"
+      fill="${FILL[r.risk]}" fill-opacity="${FOP[r.risk]}" stroke="var(--mapline)" stroke-width=".7"
       stroke-linejoin="round"><title>${tip}</title></path>`;
   };
+  /* 강조 테두리 전용 레이어 — 채우기 없이 선만, 클릭은 아래 shape() 패스가 받도록 통과 */
+  const markLine = (g, fx, fy, thin) => `<path d="${toPath(g.rings, fx, fy)}" fill="none"
+    stroke="var(--accent)" stroke-width="${thin ? 1.0 : 1.6}" stroke-linejoin="round" pointer-events="none"/>`;
 
-  const main = REGIONMAP.map(g => shape(g, px, py, false)).join("");
-  const ins  = REGIONMAP.filter(g => ZB.has(g.name)).map(g => shape(g, ix, iy, true)).join("");
+  const main = REGIONMAP.map(g => shape(g, px, py)).join("")
+    + REGIONMAP.filter(isMark).map(g => markLine(g, px, py, false)).join("");
+  const ins  = REGIONMAP.filter(g => ZB.has(g.name)).map(g => shape(g, ix, iy)).join("")
+    + REGIONMAP.filter(g => ZB.has(g.name) && isMark(g)).map(g => markLine(g, ix, iy, true)).join("");
 
   /* 본토 라벨 (잔지바르는 인셋에서 표기) */
   const lab = REGIONMAP.filter(g => !ZB.has(g.name)).map(g => {
     const x = px(g.label[0]).toFixed(1), y = py(g.label[1]).toFixed(1);
-    const mk = IS_PUBLIC ? !!(by[g.name]||{}).project : !!STAFF[g.name];
-    return `<text class="lb${mk ? " prj" : ""}" x="${x}" y="${y}">${g.name}</text>`;
+    return `<text class="lb${isMark(g) ? " prj" : ""}" x="${x}" y="${y}">${g.name}</text>`;
   }).join("");
   const insLab = REGIONMAP.filter(g => ZB.has(g.name)).map(g => {
-    const mk2 = IS_PUBLIC ? !!(by[g.name]||{}).project : !!STAFF[g.name];
-    return `<text class="lb sm${mk2 ? " prj" : ""}" x="${ix(g.label[0]).toFixed(1)}"
+    return `<text class="lb sm${isMark(g) ? " prj" : ""}" x="${ix(g.label[0]).toFixed(1)}"
       y="${iy(g.label[1]).toFixed(1)}">${g.name.replace("잔지바르 시","잔지바르시")}</text>`;
   }).join("");
 
@@ -631,39 +712,11 @@ function render(){
       <span>${d.desc || "GDACS 농업가뭄 경보"} <span style="color:var(--ink3)">(${d.from} ~ ${d.to})</span></span>`;
   } else b.className = "banner";
 
-  /* 경보 목록 */
-  const al = [];
-  rows.forEach(r => {
-    Object.entries(r.axes).forEach(([ax,lv]) => {
-      if (lv < 2) return;
-      let why = "";
-      if (ax === "호우") why = r.rain.useRatio
-        ? `7일 최대 <b>${r.rain.maxD.toFixed(0)}mm</b> · 누적 ${r.rain.acc7.toFixed(0)}mm = ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 <b>${(r.rain.ratio*100).toFixed(0)}%</b>`
-        : `7일 최대 <b>${r.rain.maxD.toFixed(0)}mm</b> · 누적 ${r.rain.acc7.toFixed(0)}mm`;
-      if (ax === "폭염") why = `체감최고 <b>${r.ht.t.toFixed(1)}℃</b> (기온 ${r.ht.a.toFixed(1)}℃)`;
-      if (ax === "강풍") why = `최대돌풍 <b>${r.gu.g.toFixed(0)}km/h</b>`;
-      if (ax === "산불") why = `반경 내 GDACS 산불 <b>${r.nwf}건</b>`;
-      if (ax === "지진") why = `최근 30일 최대 <b>M${r.mqF.toFixed(1)}</b> (1년 최대 M${r.mq.toFixed(1)})`;
-      if (ax === "하천") { const v = r.rivers.filter(x=>x.lv>=2).sort((a,b)=>b.ratio-a.ratio)[0];
-        why = `<b>${v.name}</b> <b>${shortDate(v.peakDay)} 예상</b> 평년 대비 <b>${v.ratio.toFixed(2)}배</b>`
-          + (v.peakDay === r.d.time?.[0] ? " (오늘 기준)" : ` · 오늘은 ${(v.cur/v.mean).toFixed(2)}배로 정상`); }
-      al.push({lv, r, ax, why});
-    });
-  });
-  const alF = activeAxis ? al.filter(a => a.ax === activeAxis) : al;
-  alF.sort((a,b) => b.lv - a.lv || (STAFF[b.r.name]?1:0) - (STAFF[a.r.name]?1:0));
-  $("#alcount").textContent = (activeAxis ? `${activeAxis} · ` : "") + `${alF.length}건`;
-  $("#alerts").innerHTML = alF.length ? alF.map(a =>
-    `<div class="al l${a.lv} clk" data-n="${a.r.name}"><div class="who">${a.r.name}
-      <div style="font-weight:400;font-size:10px;color:var(--ink3)">${a.r.project || a.r.zone}</div></div>
-      <div class="what"><span class="pill p${a.lv}">${a.ax} ${LV[a.lv]}</span> ${a.why}</div></div>`).join("")
-    : `<div class="empty">${activeAxis ? activeAxis + " 임계 초과 지역 없음" : "임계 초과 지역 없음 — 전국 정상"}</div>`;
-
-  $("#alerts").querySelectorAll(".al.clk").forEach(el => el.onclick = () => detail(el.dataset.n));
-
+  renderBrief(rows);
   drawMap(rows);
+  renderHeatmap(rows);
 
-  /* 주별 표 */
+  /* 주별 표 — 히트맵 뒤에 숨어 있다가 '숫자 표' 전환 시 보인다 */
   const cols = [
     ["name","주",0],["zone","권역",0],["risk","등급",1],["maxD","7일최대",1],
     ["acc7","7일누적",1],["ratio","평년비",1],["heat","체감최고",1],["gustv","돌풍",1],
@@ -700,6 +753,7 @@ function render(){
   });
 
   /* 하천 */
+  renderGauge(rivers);
   $("#rtbl").innerHTML =
     `<thead><tr><th>하천</th><th>권역</th><th class="num">최대 이상일</th>
       <th class="num">해당일 평년</th><th class="num">배수</th><th>판정</th></tr></thead>
@@ -711,32 +765,266 @@ function render(){
        <td class="num">${v.ratio ? v.ratio.toFixed(2)+"배" : "—"}</td>
        <td><span class="pill p${v.lv}">${v.ratio?LV[v.lv]:"신호없음"}</span></td></tr>`).join("")}</tbody>`;
 
-  /* GDACS */
-  const TY = {FL:"홍수",DR:"가뭄",TC:"사이클론",EQ:"지진",WF:"산불",VO:"화산"};
+  /* GDACS — 같은 유형의 개별 이벤트를 한 줄로 묶는다. 원문은 산불이 날짜만 바뀐
+     영문 문장으로 4~8줄 반복되어 실제로 읽히지 않았다. 원문은 툴팁으로 남긴다. */
   const act = gd.filter(e => e.active);
-  const g2 = act.filter(e => e.type !== "WF").concat(act.filter(e => e.type === "WF").slice(0,4));
   const closed = gd.filter(e => !e.active && e.type !== "WF")
                    .sort((a,b) => (b.to||"").localeCompare(a.to||"")).slice(0,3);
   $("#gcount").textContent = `활성 ${act.length}건 (산불 ${DATA.wf.length}) · 전체 ${gd.length}건`;
-  const card = (e,off) =>
-    `<div class="al l${off?0:(AL[e.alert]||2)}"${off?' style="opacity:.55;border-left-color:var(--l0);background:var(--l0bg)"':""}>
-      <div class="who">${TY[e.type]||e.type}
-      <div style="font-weight:400;font-size:10px;color:var(--ink3)">${e.from} ~ ${e.to||""}</div></div>
-      <div class="what"><span class="pill p${off?0:(AL[e.alert]||2)}">${off?"종료":e.alert.toUpperCase()}</span> ${e.desc}</div></div>`;
-  $("#gdacs").innerHTML = (g2.length ? g2.map(e => card(e,false)).join("")
+  const nfr = rows.filter(r => r.nwf > 0).length;
+  const gcard = (g, off) => {
+    const lv = off ? 0 : (AL[g.alert] || 2);
+    const extra = (!off && g.type === "WF" && nfr) ? ` · 반경 내에 잡힌 주 <b>${nfr}곳</b>` : "";
+    return `<div class="al l${lv}"${off?' style="opacity:.55;border-left-color:var(--l0);background:var(--l0bg)"':""}
+        title="${hesc(g.raw)}">
+      <div class="who">${TYI[g.type]||""} ${TY[g.type]||g.type} ${g.n}건
+        <div style="font-weight:400;font-size:10px;color:var(--ink3)">${shortDate(g.from)} ~ ${g.to ? shortDate(g.to) : "진행 중"}</div></div>
+      <div class="what"><span class="pill p${lv}">${off?"종료":(ALK[g.alert]||g.alert)}</span>
+        ${koDesc(g.raw)}${extra}</div></div>`;
+  };
+  const gAct = groupGd(act), gCls = groupGd(closed);
+  $("#gdacs").innerHTML = (gAct.length ? gAct.map(g => gcard(g,false)).join("")
       : `<div class="empty">최근 14일 내 활성 재해 없음</div>`)
-    + (closed.length ? `<div style="font-size:11px;color:var(--ink3);margin:8px 0 5px">최근 종료</div>`
-        + closed.map(e => card(e,true)).join("") : "");
+    + (gCls.length ? `<div style="font-size:11px;color:var(--ink3);margin:8px 0 5px">최근 종료</div>`
+        + gCls.map(g => gcard(g,true)).join("") : "");
 
   /* 지진 */
-  $("#quakes").innerHTML = eq.length ? eq.slice(0,12).map(q => {
-    const lv = q.mag >= 5.5 ? 3 : q.mag >= 4.5 ? 2 : 1;
-    return `<div class="al l${lv}"><div class="who">M ${q.mag.toFixed(1)}
-      <div style="font-weight:400;font-size:10px;color:var(--ink3)">${new Date(q.t).toISOString().slice(0,10)}</div></div>
-      <div class="what">${q.place}</div></div>`;
-  }).join("") : `<div class="empty">최근 1년 M4.0 이상 없음</div>`;
+  renderQuakes(eq);
 
   
+}
+
+
+/* ───────── 지도 아래 요약 뷰 ───────── */
+/* 숫자 표는 31행 x 11열이라 실제로 위험한 5~7칸이 배경값 300여 개에 묻힌다.
+   아래 함수들은 같은 데이터를 '먼저 눈에 들어오는' 형태로 한 벌 더 그린다.
+   원본 숫자 표는 지우지 않고 토글 뒤에 그대로 남겨 둔다(보고서 첨부용). */
+
+const AX6 = ["호우","폭염","강풍","산불","하천","지진"];
+const ALK = {red:"심각", orange:"경계", green:"관심"};
+const TY  = {FL:"홍수", DR:"가뭄", TC:"사이클론", EQ:"지진", WF:"산불", VO:"화산"};
+const TYI = {FL:"🌊", DR:"🏜", TC:"🌀", EQ:"🌍", WF:"🔥", VO:"🌋"};
+const hesc = s => String(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+
+/* ── A. 한 줄 브리핑 ── */
+function renderBrief(rows){
+  const el = $("#brief"), n = nowTZ();
+  const day = `${n.getMonth()+1}월 ${n.getDate()}일`;
+  const warn = rows.filter(r => r.risk >= 2);
+  const mx = Math.max(0, ...rows.map(r => r.risk));
+  if (!warn.length){
+    el.className = "brief lv1";
+    el.innerHTML = `<span class="pill p1">정상</span>`
+      + `<span>${day} 현재 전국 <span class="em">${rows.length}개 주</span> 모두 임계 미만 — 특이사항 없음.</span>`;
+    return;
+  }
+  const top = [...warn].sort((a,b) => b.risk - a.risk)[0];
+  const tax = Object.entries(top.axes).sort((a,b) => b[1] - a[1])[0][0];
+  const names = list => list.map(r => r.name).slice(0,3).join("·")
+    + (list.length > 3 ? ` 외 ${list.length-3}곳` : "");
+  let tail;
+  if (IS_PUBLIC){
+    const proj = warn.filter(r => r.project);
+    tail = proj.length ? ` KOICA 사업지 중 <span class="em2">${names(proj)}</span> 포함.`
+                       : " KOICA 사업지는 모두 임계 미만.";
+  } else {
+    const st = warn.filter(r => r.staff);
+    tail = st.length
+      ? ` 파견인력 배치 지역 중 <span class="em2">${names(st)}</span> 포함(${st.reduce((a,r)=>a+r.staff.n,0)}명).`
+      : " 파견인력 배치 지역은 모두 임계 미만.";
+  }
+  el.className = "brief lv" + mx;
+  el.innerHTML = `<span class="pill p${mx}">${LV[mx]}</span>`
+    + `<span>${day} 현재 ${rows.length}개 주 중 <span class="em">${warn.length}개 주</span>가 주의 이상. `
+    + `최고 등급은 <span class="em">${top.name} ${tax} ${LV[top.risk]}</span>.${tail}</span>`;
+}
+
+/* ── B. 위험 히트맵 ── */
+/* 색칠된 칸 안에 그 축의 대표 수치를 같이 넣는다. 별도 숫자 열을 두면
+   정상 지역의 0이 위험 수치와 같은 무게로 화면을 채우기 때문이다. */
+/* 히트맵 칸에 마우스를 올리면 뜨는 상세 근거 — 예전 '현재 경보' 패널의 문장을
+   그대로 옮겼다. 아래 상세와 중복이라 패널을 없앴지만 근거 텍스트 자체는 지우지
+   않고 툴팁으로 옮겼다(클릭하면 modal에서 더 자세히 볼 수 있다). */
+function riskWhy(r, ax){
+  if (ax === "호우") return r.rain.useRatio
+    ? `7일 최대 ${r.rain.maxD.toFixed(0)}mm · 누적 ${r.rain.acc7.toFixed(0)}mm = ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 ${(r.rain.ratio*100).toFixed(0)}%`
+    : `7일 최대 ${r.rain.maxD.toFixed(0)}mm · 누적 ${r.rain.acc7.toFixed(0)}mm`;
+  if (ax === "폭염") return `체감최고 ${r.ht.t.toFixed(1)}℃ (기온 ${r.ht.a.toFixed(1)}℃)`;
+  if (ax === "강풍") return `최대돌풍 ${r.gu.g.toFixed(0)}km/h`;
+  if (ax === "산불") return `반경 내 GDACS 산불 ${r.nwf}건`;
+  if (ax === "지진") return `최근 30일 최대 M${r.mqF.toFixed(1)} (1년 최대 M${r.mq.toFixed(1)})`;
+  if (ax === "하천"){ const v = r.rivers.filter(x=>x.lv>=2).sort((a,b)=>b.ratio-a.ratio)[0];
+    if (!v) return "";
+    return `${v.name} ${shortDate(v.peakDay)} 예상 평년 대비 ${v.ratio.toFixed(2)}배`
+      + (v.peakDay === r.d.time?.[0] ? " (오늘 기준)" : ` · 오늘은 ${(v.cur/v.mean).toFixed(2)}배로 정상`);
+  }
+  return "";
+}
+function hmText(r, ax, lv){
+  if (!lv) return "";
+  if (ax === "호우") return r.rain.maxD.toFixed(0) + "mm";
+  if (ax === "폭염") return r.ht.t.toFixed(0) + "\u00b0";
+  if (ax === "강풍") return r.gu.g.toFixed(0) + "km";
+  if (ax === "산불") return r.nwf + "건";
+  if (ax === "하천"){ const v = r.riverWhen; return (v && v.ratio) ? v.ratio.toFixed(1) + "배" : ""; }
+  if (ax === "지진") return r.mqF ? "M" + r.mqF.toFixed(1) : "";
+  return "";
+}
+/* 31개 주를 다 그리면 정상인 주가 화면 절반을 빈 칸으로 채운다 — 임계 이상인
+   주만 그리고, 나머지는 접힌 목록 한 줄로 몰아둔다(이름은 클릭하면 상세 그대로). */
+function renderHeatmap(rows){
+  const pr = r => (r.project?1:0) + (r.staff?1:0);
+  const warn = rows.filter(r => activeAxis ? r.axes[activeAxis] >= 2 : r.risk > 0)
+    .sort((a,b) => (activeAxis ? b.axes[activeAxis]-a.axes[activeAxis] : b.risk-a.risk)
+      || pr(b)-pr(a) || a.name.localeCompare(b.name));
+  const normal = rows.filter(r => !warn.includes(r)).sort((a,b) => a.name.localeCompare(b.name));
+
+  if (!warn.length){
+    $("#hm").innerHTML = `<div class="empty" style="grid-column:1/-1">`
+      + (activeAxis ? `${activeAxis} 임계 초과 지역 없음` : "임계 초과 지역 없음 — 전국 정상") + `</div>`
+      + normSummary(normal);
+    $("#hm").style.gridTemplateColumns = "1fr";
+    wireHm();
+    return;
+  }
+  const twoCol = warn.length > 12;
+  $("#hm").style.gridTemplateColumns = twoCol ? "repeat(2,minmax(0,640px))" : "minmax(0,640px)";
+  const col = list => `<div class="hmcol"><span class="hmh"></span>`
+    + AX6.map(a => `<span class="hmh">${a}</span>`).join("")
+    + list.map(r => `<span class="hmn${r.project?" prj":""}" data-n="${hesc(r.name)}"
+        title="${hesc(r.name)} · ${hesc(r.zone)}${r.project?" · "+hesc(r.project):""}">${r.name}</span>`
+      + AX6.map(a => {
+          const lv = r.axes[a], dim = activeAxis && activeAxis !== a ? " dim" : "";
+          const why = lv ? riskWhy(r,a) : "";
+          return `<span class="hc l${lv}${dim}" data-n="${hesc(r.name)}"
+            title="${hesc(r.name)} ${a} ${LV[lv]}${why?" — "+hesc(why):""}">${hmText(r,a,lv)}</span>`;
+        }).join("")).join("")
+    + `</div>`;
+  const half = twoCol ? Math.ceil(warn.length/2) : warn.length;
+  $("#hm").innerHTML = twoCol ? col(warn.slice(0,half)) + col(warn.slice(half)) : col(warn);
+  $("#hm").insertAdjacentHTML("beforeend", normSummary(normal));
+  wireHm();
+}
+function normSummary(normal){
+  if (!normal.length) return "";
+  return `<details class="hmnorm"><summary>정상 ${normal.length}개 주</summary>
+    <div class="nlist">${normal.map(r =>
+      `<span data-n="${hesc(r.name)}">${r.name}</span>`).join(" · ")}</div></details>`;
+}
+function wireHm(){
+  $("#hm").querySelectorAll("[data-n]").forEach(el => el.onclick = () => detail(el.dataset.n));
+}
+let tblView = "heat";
+function setTblView(v){
+  tblView = v;
+  $("#hm").style.display     = v === "heat" ? "grid" : "none";
+  $("#tblbox").style.display = v === "heat" ? "none" : "block";
+  $("#vHeat").classList.toggle("on", v === "heat");
+  $("#vTbl").classList.toggle("on",  v !== "heat");
+  $("#tblnote").textContent = v === "heat"
+    ? `임계 이상 주만 표시 · 정상 지역은 접어둠 · 주 클릭 시 상세`
+    : "평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬";
+}
+
+/* ── C. 하천 게이지 ── */
+/* 표에서는 '49.5 / 41.7 / 1.19배'를 눈으로 나눠야 평년 초과를 알 수 있었다.
+   막대 위 세로선이 그 날짜의 평년값이라 선을 넘었는지만 보면 된다. */
+function gaugeTier(ratio){
+  return ratio >= 3 ? 4 : ratio >= 2 ? 3 : ratio >= 1.5 ? 2 : ratio >= 1.15 ? 1 : 0;
+}
+function renderGauge(rivers){
+  const ok = rivers.filter(v => v.ok);
+  if (!ok.length){ $("#rgauge").innerHTML = `<div class="empty">하천 데이터 없음</div>`; return; }
+  const SC = Math.max(1.6, Math.ceil(Math.max(...ok.map(v => v.ratio || 0)) * 2 + 1) / 2);
+  const pct = v => Math.min(100, v / SC * 100);
+  const sorted = [...ok].sort((a,b) => (b.ratio||0) - (a.ratio||0));
+  const gtier = v => gaugeTier(v.ratio||0);
+  $("#rgauge").innerHTML = sorted.map(v => `
+    <div class="grow" title="${hesc(v.name)} — ${shortDate(v.peakDay)} 예보 ${v.peak.toFixed(1)} · 그날 평년 ${v.peakMean.toFixed(1)} (m³/s)">
+      <div><div class="gn">${v.name}${v.weak?' <span style="color:var(--ink3);font-size:10px;font-weight:400">저신뢰</span>':""}</div>
+        <div class="gd">${v.desc}</div></div>
+      <div class="gbar">
+        <div class="gfill${gtier(v)?" l"+gtier(v):""}" style="width:${pct(v.ratio||0).toFixed(1)}%"></div>
+        <div class="gbase" style="left:${pct(1).toFixed(1)}%"></div></div>
+      <div class="gval${gtier(v)===1?" hi":gtier(v)?" l"+gtier(v):""}">${v.ratio ? v.ratio.toFixed(2)+"배" : "—"}
+        <span>${v.ratio ? shortDate(v.peakDay) : "신호없음"}</span></div>
+    </div>`).join("")
+    + `<div class="gaxis"><span></span>
+        <span style="position:relative;display:block;height:13px">
+          <span style="position:absolute;left:${pct(1).toFixed(1)}%;transform:translateX(-50%)">↑ 평년 1.00배</span>
+          <span style="position:absolute;right:0">${SC.toFixed(1)}배</span></span><span></span></div>`;
+}
+function setRvView(v){
+  $("#rgauge").style.display  = v === "gauge" ? "block" : "none";
+  $("#rtblbox").style.display = v === "gauge" ? "none" : "block";
+  $("#vGauge").classList.toggle("on", v === "gauge");
+  $("#vRtbl").classList.toggle("on",  v !== "gauge");
+}
+
+/* ── D-1. GDACS 한글화 ── */
+/* 원문은 "Green Forest fires in Tanzania from: 23 Aug 2026 to: 03 Sep 2026." 형태다.
+   등급·기간은 이미 배지와 날짜줄에 있으므로 본문에서는 덜어내고 유형·국가만 남긴다. */
+const EVK = {"Forest fires":"산불", "Forest fire":"산불", "Flood":"홍수", "Drought":"가뭄",
+  "Tropical Cyclone":"사이클론", "Earthquake":"지진", "Volcano":"화산"};
+const CTRY = {"Democratic Republic of the Congo":"콩고민주공화국",
+  "Democratic Republic of Congo":"콩고민주공화국", "United Republic of Tanzania":"탄자니아",
+  "Tanzania":"탄자니아", "Kenya":"케냐", "Uganda":"우간다", "Burundi":"부룬디", "Rwanda":"르완다",
+  "Mozambique":"모잠비크", "Zambia":"잠비아", "Malawi":"말라위", "Somalia":"소말리아",
+  "Ethiopia":"에티오피아", "Comoros":"코모로", "Madagascar":"마다가스카르", "South Sudan":"남수단"};
+function koDesc(s){
+  let t = String(s||"").replace(/\s*from:.*$/i, "").trim();
+  t = t.replace(/^(green|orange|red)\s+/i, "");
+  Object.keys(EVK).forEach(k => { t = t.replace(new RegExp(k, "gi"), EVK[k]); });
+  Object.keys(CTRY).forEach(k => { t = t.split(k).join(CTRY[k]); });
+  t = t.replace(/\bin\b/gi, "·").replace(/\s*,\s*/g, "·").replace(/\s+/g, " ").trim();
+  return t.replace(/[.·]+$/, "") || "GDACS 경보";
+}
+/* 같은 유형끼리 묶어 건수·기간·최고등급만 남긴다 */
+function groupGd(list){
+  const m = new Map();
+  list.forEach(e => {
+    const g = m.get(e.type) || {type:e.type, n:0, alert:"green", from:e.from, to:e.to||"", raw:e.desc};
+    g.n++;
+    if ((AL[e.alert]||2) > (AL[g.alert]||2)){ g.alert = e.alert; g.raw = e.desc; }
+    if (e.from && (!g.from || e.from < g.from)) g.from = e.from;
+    if (e.to && e.to > g.to) g.to = e.to;
+    m.set(e.type, g);
+  });
+  return [...m.values()].sort((a,b) => (AL[b.alert]||2) - (AL[a.alert]||2) || b.n - a.n);
+}
+
+/* ── D-2. 지진 ── */
+/* 목록만 있으면 '경보에 실제로 쓰이는 최근 30일'이 어디에도 안 보인다.
+   그 숫자를 맨 위로 올리고, 1년치는 월별 막대로 흐름만 남긴다. */
+function renderQuakes(eq){
+  const now = Date.now();
+  const fresh = eq.filter(q => now - q.t <= 30*864e5);
+  const mx30 = fresh.length ? Math.max(...fresh.map(q => q.mag)) : 0;
+  const mx1y = eq.length   ? Math.max(...eq.map(q => q.mag))    : 0;
+  const bk = Array.from({length:12}, () => ({n:0, m:0}));
+  eq.forEach(q => {
+    const i = 11 - Math.floor((now - q.t) / (30.44*864e5));
+    if (i >= 0 && i < 12){ bk[i].n++; bk[i].m = Math.max(bk[i].m, q.mag); }
+  });
+  const mxn = Math.max(1, ...bk.map(b => b.n));
+  const lv30 = mx30 >= 5.5 ? 3 : mx30 >= 4.5 ? 2 : mx30 ? 1 : 0;
+  $("#eqsum").innerHTML =
+    `<div class="eqhero"><span class="n"${fresh.length?' style="color:var(--l'+(lv30||2)+')"':""}>${fresh.length}</span>
+       <span style="color:var(--ink2)">건 · 최근 30일</span>
+       ${mx30?`<span class="pill p${lv30}">최대 M${mx30.toFixed(1)}</span>`:""}</div>
+     <div style="font-size:10.5px;color:var(--ink3);margin-top:2px">경보 판정에 반영되는 구간 · 관측범위 남위 0~13° 동경 28~42°</div>
+     <div class="eqspark">${bk.map(b =>
+        `<i class="${b.n ? (b.m >= 5.0 ? "hot" : "on") : ""}" style="height:${b.n?Math.round(6+b.n/mxn*30):3}px"
+          title="${b.n}건${b.m?" · 최대 M"+b.m.toFixed(1):""}"></i>`).join("")}</div>
+     <div class="eqlbl"><span>12개월 전</span>
+       <span>1년 ${eq.length}건${mx1y?" · 최대 M"+mx1y.toFixed(1):""}</span><span>오늘</span></div>`;
+  $("#quakes").innerHTML = eq.length ? eq.slice(0,8).map(q => {
+    const lv = q.mag >= 5.5 ? 3 : q.mag >= 4.5 ? 2 : 1;
+    const tz = /Tanzania/i.test(q.place);
+    return `<div class="al l${lv}"${tz?"":' style="opacity:.62"'}><div class="who">M ${q.mag.toFixed(1)}
+      <div style="font-weight:400;font-size:10px;color:var(--ink3)">${new Date(q.t).toISOString().slice(0,10)}</div></div>
+      <div class="what">${tz?'<span class="tag">탄자니아</span> ':'<span class="tag" style="background:var(--l0bg);color:var(--l0)">인접국</span> '}${hesc(q.place)}</div></div>`;
+  }).join("") : `<div class="empty">최근 1년 M4.0 이상 없음</div>`;
 }
 
 /* ───────── 명부 · Safe-Check ───────── */
@@ -881,18 +1169,13 @@ if (IS_PUBLIC && OFFICE_CONTACT)
 if (IS_PUBLIC) $("#pp-body").innerHTML =
   "이 페이지는 공개 기상·재난 데이터만 표시합니다. 파견인력 명부·연락처·안전확인 응답 등 "
   + "개인정보는 <b>포함되어 있지 않으며</b>, 방문자 정보도 수집하지 않습니다.";
+else $("#pp-body").innerHTML =
+  "파견인력은 <b>배치 도시 단위</b>로만 관리하며 GPS 좌표·이동경로를 수집하지 않습니다. "
+  + "안전확인 응답은 이 브라우저에만 저장(localStorage)되며 외부로 전송되지 않습니다. "
+  + "아래 명부는 '26.2분기 사업현황 자료의 소속·인원 정보를 옮긴 <b>초기값 예시</b>로, "
+  + "실제 운영 시 확정 명부로 교체해야 합니다.";
 
-$("#reload").onclick = load;
-$("#theme").onclick = () => {
-  const d = document.documentElement.getAttribute("data-theme") === "dark";
-  document.documentElement.setAttribute("data-theme", d ? "light" : "dark");
-  $("#theme").textContent = d ? "야간" : "주간";
-  lsSet("tzTheme", d ? "light" : "dark");
-};
-if (ls("tzTheme","light") === "dark") $("#theme").click();
-load();
-loadNews();
-setInterval(loadNews, 15 * 60 * 1000);   // 서버가 10분 캐시하므로 이 주기면 충분
+
 
 /* ───────── 안전 관련 뉴스 (서버 함수 경유 — RSS는 브라우저 CORS로 직접 못 읽음) ───────── */
 async function loadNews(){
@@ -920,7 +1203,26 @@ function shortNewsDate(s){
   const d = new Date(t);
   return `${d.getMonth()+1}/${d.getDate()}`;
 }
+
+$("#vHeat").onclick  = () => setTblView("heat");
+$("#vTbl").onclick   = () => setTblView("table");
+$("#vGauge").onclick = () => setRvView("gauge");
+$("#vRtbl").onclick  = () => setRvView("table");
+setTblView("heat");
+/* 공개판에는 명부 패널이 없어 마지막 행에 빈 칸이 남는다 */
+
+$("#reload").onclick = load;
+$("#theme").onclick = () => {
+  const d = document.documentElement.getAttribute("data-theme") === "dark";
+  document.documentElement.setAttribute("data-theme", d ? "light" : "dark");
+  $("#theme").textContent = d ? "야간" : "주간";
+  lsSet("tzTheme", d ? "light" : "dark");
+};
+if (ls("tzTheme","light") === "dark") $("#theme").click();
+load();
 setInterval(load, 15 * 60 * 1000);   // 15분 자동 갱신
+loadNews();
+setInterval(loadNews, 15 * 60 * 1000);   // 서버가 10분 캐시하므로 이 주기면 충분
 </script>
 </body>
 </html>
