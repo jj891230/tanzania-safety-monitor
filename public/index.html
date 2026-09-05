@@ -25,7 +25,10 @@
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:"Malgun Gothic","맑은 고딕",-apple-system,"Segoe UI",Roboto,sans-serif;
   font-size:13px;line-height:1.5}
-.wrap{max-width:1180px;margin:0 auto;padding:14px}
+/* 1180px는 넓은 모니터에서 양옆에 큰 빈 여백을 남긴다(사용자 스크린샷으로 확인) —
+   1600px로 넓혀 화면을 더 채운다. .grid2 등 반응형 분기는 뷰포트 폭 기준이라
+   이 값을 바꿔도 좁은 화면 동작에는 영향이 없다. */
+.wrap{max-width:1600px;margin:0 auto;padding:14px}
 
 /* ── header ── */
 header{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;
