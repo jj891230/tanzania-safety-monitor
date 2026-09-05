@@ -65,6 +65,10 @@ async function jget(url, timeoutMs = 15000) {
 // 이 추적을 타지 않아 배포 후 "파일 없음"으로 깨질 수 있어 피한다.
 const baseline = require("../data/baseline.json");
 const riversCfg = require("../data/rivers.json");
+// 170개 군(Wilaya) 기준선 — 폴리곤(rings)은 이메일에 필요 없어 빼고 위경도+평년값만
+// 담은 경량판(대시보드가 쓰는 districts.json과 다른 파일, build.py와 별개로 생성).
+// 실측(ERA5, baseline_district.py) 전이면 상위 주 평년값을 임시로 물려받은 값이다.
+const districtBase = require("../data/baseline_district.json");
 
 module.exports = async (req, res) => {
   // 아무나 이 URL을 반복 호출해 Slack을 스팸하지 못하도록 공유 비밀키로 보호
@@ -78,16 +82,18 @@ module.exports = async (req, res) => {
 
   const lat = baseline.map((r) => r.lat).join(",");
   const lon = baseline.map((r) => r.lon).join(",");
+  const dlat = districtBase.map((r) => r.lat).join(",");
+  const dlon = districtBase.map((r) => r.lon).join(",");
   const rlat = riversCfg.map((r) => r.lat).join(",");
   const rlon = riversCfg.map((r) => r.lon).join(",");
   const from = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+  const fcParams = `&daily=precipitation_sum,temperature_2m_max,apparent_temperature_max,wind_gusts_10m_max&forecast_days=7&timezone=${TZ}`;
 
-  const [fcR, flR, gdR, eqR] = await Promise.allSettled([
-    jget(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        `&daily=precipitation_sum,temperature_2m_max,apparent_temperature_max,wind_gusts_10m_max` +
-        `&forecast_days=7&timezone=${TZ}`
-    ),
+  const [fcR, fcDR, flR, gdR, eqR] = await Promise.allSettled([
+    jget(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${fcParams}`),
+    // 위험 알림 메일은 군(Wilaya) 단위로 보내야 해서(대시보드 토글과 같은 이유 — 어느
+    // 주가 아니라 어느 군인지까지 알아야 실무적으로 쓸모 있다) 170곳 예보를 따로 받는다.
+    jget(`https://api.open-meteo.com/v1/forecast?latitude=${dlat}&longitude=${dlon}${fcParams}`),
     jget(`https://flood-api.open-meteo.com/v1/flood?latitude=${rlat}&longitude=${rlon}&daily=river_discharge,river_discharge_mean&forecast_days=14`),
     jget(`https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?country=Tanzania&alertlevel=Green;Orange;Red`, 12000),
     jget(
@@ -96,11 +102,13 @@ module.exports = async (req, res) => {
   ]);
 
   const fc = fcR.status === "fulfilled" ? fcR.value : null;
+  const fcD = fcDR.status === "fulfilled" ? fcDR.value : null;
   const fl = flR.status === "fulfilled" ? flR.value : null;
   const gdRaw = gdR.status === "fulfilled" ? gdR.value : null;
   const eqRaw = eqR.status === "fulfilled" ? eqR.value : null;
   const sourceFails = [
     !fc && "forecast: " + fcR.reason?.message,
+    !fcD && "forecast(군): " + fcDR.reason?.message,
     !fl && "flood: " + flR.reason?.message,
     !gdRaw && "gdacs: " + gdR.reason?.message,
     !eqRaw && "usgs: " + eqR.reason?.message,
@@ -156,10 +164,9 @@ module.exports = async (req, res) => {
     return { ...rv, ok: true, ratio, lv, peakDay };
   });
 
-  const alerts = [];
-  baseline.forEach((r, i) => {
-    const daily = (Array.isArray(fc) ? fc[i]?.daily : fc.daily) || null;
-    if (!daily) return;
+  // 지역 하나의 6축 판정 — 주(baseline)든 군(districtBase)이든 lat/lon+monthly만
+  // 있으면 되므로 그대로 재사용한다(대시보드 template.html의 buildRows()와 같은 이유).
+  function axesOf(r, daily) {
     const rain = heavyRain(r, daily);
     const ht = heat(daily);
     const gu = gust(daily);
@@ -168,18 +175,49 @@ module.exports = async (req, res) => {
     const nq = nearEvents(eq, r.lat, r.lon, 1.8).filter((q) => Date.now() - q.t <= 30 * 864e5);
     const mq = nq.length ? Math.max(...nq.map((q) => q.mag)) : 0;
     const quake = mq >= 5.5 ? 3 : mq >= 4.5 ? 2 : mq ? 1 : 0;
+    return { 호우: rain.lv, 폭염: ht.lv, 강풍: gu.lv, 산불: fire, 지진: quake };
+  }
+  const hitsOf = (axes) =>
+    Object.entries(axes)
+      .filter(([, v]) => v >= 2)
+      .map(([k, v]) => `${k} ${LV[v]}`);
+
+  // 주(Mkoa) 단위 — 하천 축은 GloFAS 관측지점을 직접 v.region으로 매칭한다.
+  const regionAxes = {}; // 군 판정이 하천 축을 그대로 물려받기 위해 이름으로 보관
+  const alerts = [];
+  baseline.forEach((r, i) => {
+    const daily = (Array.isArray(fc) ? fc[i]?.daily : fc.daily) || null;
+    if (!daily) return;
+    const axes = axesOf(r, daily);
     const rrs = rivers.filter((v) => v.ok && v.region === r.name);
-    const riverLv = Math.max(0, ...rrs.map((v) => v.lv || 0));
-    const axes = { 호우: rain.lv, 폭염: ht.lv, 강풍: gu.lv, 산불: fire, 하천: riverLv, 지진: quake };
+    axes.하천 = Math.max(0, ...rrs.map((v) => v.lv || 0));
+    regionAxes[r.name] = axes;
     const risk = Math.max(...Object.values(axes));
-    if (risk >= 2) {
-      const hits = Object.entries(axes)
-        .filter(([, v]) => v >= 2)
-        .map(([k, v]) => `${k} ${LV[v]}`);
-      alerts.push({ region: r.name, project: r.project || null, risk, hits });
-    }
+    if (risk >= 2) alerts.push({ region: r.name, project: r.project || null, risk, hits: hitsOf(axes) });
   });
   alerts.sort((a, b) => b.risk - a.risk);
+
+  // 군(Wilaya) 단위 — 위험 알림 메일은 이 배열로 보낸다. 하천 축은 강이 정확히 어느
+  // 군을 지나는지 격자로 특정할 수 없어(대시보드와 동일 이유) 상위 주(zone)의
+  // 판정을 그대로 물려받는다.
+  const districtAlerts = [];
+  if (fcD) {
+    districtBase.forEach((r, i) => {
+      const daily = (Array.isArray(fcD) ? fcD[i]?.daily : fcD.daily) || null;
+      if (!daily) return;
+      const axes = axesOf(r, daily);
+      axes.하천 = (regionAxes[r.zone] || {}).하천 || 0;
+      const risk = Math.max(...Object.values(axes));
+      if (risk >= 2) districtAlerts.push({ district: r.name, zone: r.zone, risk, hits: hitsOf(axes) });
+    });
+  }
+  districtAlerts.sort((a, b) => b.risk - a.risk);
+
+  // 메일은 군 단위, 군 예보가 실패했을 때만 주 단위로 대체한다(위 이메일 블록에서
+  // 실제 발송에 씀). 응답 JSON에도 그대로 노출하기 위해 여기서 미리 정한다.
+  const useDistrict = districtAlerts.length > 0 || !!fcD;
+  const mailAlerts = useDistrict ? districtAlerts : alerts;
+  const unit = useDistrict ? "군" : "주";
 
   let posted = false;
   const notifyErrors = [];
@@ -210,18 +248,26 @@ module.exports = async (req, res) => {
   // 이메일(Resend) — Vercel엔 자체 발송 기능이 없어 무료 API를 쓴다.
   // RESEND_API_KEY만 있으면 도메인 인증 없이 onboarding@resend.dev 발신으로 바로 된다
   // (하루 100통 무료). 커스텀 발신 도메인을 인증하면 ALERT_EMAIL_FROM으로 바꾸면 된다.
-  if (alerts.length && process.env.RESEND_API_KEY && process.env.ALERT_EMAIL_TO) {
-    const rows = alerts
-      .map(
-        (a) =>
-          `<tr><td style="padding:4px 10px 4px 0"><b>${a.region}</b>${a.project ? ` <span style="color:#888">(${a.project})</span>` : ""}</td>` +
-          `<td style="padding:4px 0">${a.hits.join(", ")}</td></tr>`
+  //
+  // 메일은 군(Wilaya) 단위로 보낸다 — Slack은 위 alerts(주 단위, 전체 개황용)를 쓰지만,
+  // 메일은 실무자가 실제로 확인할 대상 지역을 정하는 데 쓰이므로 더 정밀한 군 단위가
+  // 실무적으로 더 쓸모 있다는 요청에 따른 것이다. 군 예보가 실패했을 때는(fcD 없음)
+  // 주 단위로 대체 발송한다 — 메일이 아예 안 가는 것보다 낫다.
+  if (mailAlerts.length && process.env.RESEND_API_KEY && process.env.ALERT_EMAIL_TO) {
+    const rows = mailAlerts
+      .map((a) =>
+        useDistrict
+          ? `<tr><td style="padding:4px 10px 4px 0"><b>${a.district}</b> <span style="color:#888">(${a.zone})</span></td>` +
+            `<td style="padding:4px 0">${a.hits.join(", ")}</td></tr>`
+          : `<tr><td style="padding:4px 10px 4px 0"><b>${a.region}</b>${a.project ? ` <span style="color:#888">(${a.project})</span>` : ""}</td>` +
+            `<td style="padding:4px 0">${a.hits.join(", ")}</td></tr>`
       )
       .join("");
     const html =
       `<div style="font-family:sans-serif;font-size:14px">` +
-      `<p><b>[탄자니아 안전모니터]</b> 위험 등급 지역 ${alerts.length}건 (${new Date().toLocaleString("ko-KR", { timeZone: TZ })} EAT)</p>` +
-      `<table>${rows}</table></div>`;
+      `<p><b>[탄자니아 안전모니터]</b> 위험 등급 ${unit} ${mailAlerts.length}건 (${new Date().toLocaleString("ko-KR", { timeZone: TZ })} EAT)` +
+      (useDistrict ? "" : ` <span style="color:#c62828">— 군 단위 예보 실패로 주 단위로 대체 발송</span>`) +
+      `</p><table>${rows}</table></div>`;
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 8000);
     try {
@@ -234,7 +280,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           from: process.env.ALERT_EMAIL_FROM || "KOICA 안전모니터 <onboarding@resend.dev>",
           to: process.env.ALERT_EMAIL_TO.split(",").map((s) => s.trim()),
-          subject: `[탄자니아 안전모니터] 위험 등급 지역 ${alerts.length}건`,
+          subject: `[탄자니아 안전모니터] 위험 등급 ${unit} ${mailAlerts.length}건`,
           html,
         }),
         signal: ac.signal,
@@ -251,9 +297,13 @@ module.exports = async (req, res) => {
   res.status(200).json({
     checkedAt: new Date().toISOString(),
     regionsChecked: baseline.length,
+    districtsChecked: fcD ? districtBase.length : 0,
     alertCount: alerts.length,
+    districtAlertCount: districtAlerts.length,
+    mailUnit: unit,
     posted,
     alerts: alerts.slice(0, 10),
+    districtAlerts: districtAlerts.slice(0, 15),
     sourceFails,
     notifyErrors,
   });
