@@ -11,7 +11,12 @@
 // 지점도 그대로 두는데, 화면에서는 국경으로 잘라내지만 가장자리 보간에는 필요하기 때문이다.
 
 const LON0 = 29.45, LON1 = 40.55, LAT0 = -0.75, LAT1 = -11.95;   // template.html의 지도와 동일
-const N = 14;                     // 한 변의 표본 수 → 196지점, 약 80km 간격
+// 한 변의 표본 수. 14(=196지점, 약 79km)로 시작했는데 위성 영상(3km)에서 예보로 넘어갈 때
+// 화면이 너무 뭉개져 보인다는 지적을 받아 20(=400지점, 약 55km)으로 올렸다.
+// 26까지 올려봤더니 GET URL이 9,770자가 되어 서버가 414(URI Too Long)로 거절했다 —
+// 더 촘촘하게 하려면 POST로 바꿔야 한다. (실측: 14→상류 1.7초/슬림 44KB,
+// 20→2.4초/89KB, 26→414 에러)
+const N = 20;
 const HOURS = 48;                 // 앞으로 몇 시간까지
 const TZ = "Africa/Dar_es_Salaam";
 
@@ -41,6 +46,17 @@ async function jget(url, timeoutMs = 20000) {
   }
 }
 
+// 현지시각 기준 "지금 정시"부터 h시간 뒤를 YYYY-MM-DDTHH:00 으로. Open-Meteo의
+// start_hour/end_hour가 timezone과 같은 현지시각 기준이라 변환 없이 바로 쓴다.
+function hourStamp(h) {
+  const nowLocal = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
+  nowLocal.setMinutes(0, 0, 0);
+  nowLocal.setHours(nowLocal.getHours() + h);
+  const p = (n) => String(n).padStart(2, "0");
+  return nowLocal.getFullYear() + "-" + p(nowLocal.getMonth() + 1) + "-" + p(nowLocal.getDate()) +
+    "T" + p(nowLocal.getHours()) + ":00";
+}
+
 module.exports = async (req, res) => {
   const { lats, lons } = buildGrid();
   // forecast_days는 "오늘 00시부터" 세는 값이라, 지금이 저녁이면 앞으로 남는 시간이
@@ -48,9 +64,11 @@ module.exports = async (req, res) => {
   const url =
     "https://api.open-meteo.com/v1/forecast?latitude=" + lats.join(",") +
     "&longitude=" + lons.join(",") +
-    // 강수와 운량을 같이 받는다 — 화면에서 "강수/구름" 모드를 전환할 때 재요청이
-    // 없도록. 둘을 합쳐도 슬림화 후 40KB대라 한 번에 받는 편이 낫다.
-    "&hourly=precipitation,cloud_cover&forecast_days=" + (Math.ceil(HOURS / 24) + 1) +
+    // 강수와 운량을 같이 받는다 — 화면에서 "강수/구름" 모드를 전환할 때 재요청이 없도록.
+    // start_hour/end_hour로 필요한 48시간만 딱 잘라 받는다. forecast_days로 받으면
+    // 오늘 0시부터 72시간이 와서 3분의 1이 버려진다(실측: 443KB/2.0초 → 317KB/1.5초).
+    "&hourly=precipitation,cloud_cover" +
+    "&start_hour=" + hourStamp(0) + "&end_hour=" + hourStamp(HOURS - 1) +
     "&timezone=" + encodeURIComponent(TZ);
 
   let raw;

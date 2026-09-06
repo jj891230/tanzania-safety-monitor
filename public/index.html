@@ -1376,8 +1376,22 @@ function barChart(vals, labels, opt){
 const RAIN_PAST = 12, RAIN_FUT = 48;          // 과거 12프레임(15분×12=3시간) + 미래 48시간
 const RAIN_LAG_MIN = 45;                      // 위성 산출물 배포 지연(실측 약 40분) 여유
 const RAIN_WMS = "https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.3.0"
-  + "&request=GetMap&crs=EPSG:4326&format=image/png&transparent=true&styles="
-  + "&width=420&height=424&layers=";
+  + "&request=GetMap&crs=EPSG:4326&styles=&width=420&height=424";
+
+/* 구름(적외) 색상표 — 기상청 COMS 적외영상처럼 "따뜻한 지표=짙은 남색, 차가운
+   구름 상단=흰색"으로 칠한다. 원본 흑백을 그대로 쓰면 대비가 약해 뭐가 구름인지
+   안 읽힌다(첫 버전에서 실제로 그랬다). 밝기가 곧 구름 높이라서 단조 증가 램프면 된다. */
+const IR_STOPS = [
+  [0,   10, 22, 46], [70,  18, 46, 82], [120, 41, 92, 124],
+  [165, 120,150,168], [205, 214,226,234], [255, 255,255,255]
+];
+function irColor(v){
+  let i = IR_STOPS.length - 1;
+  while (i > 0 && v < IR_STOPS[i][0]) i--;
+  const a = IR_STOPS[i], b = IR_STOPS[Math.min(i + 1, IR_STOPS.length - 1)];
+  const f = b[0] === a[0] ? 0 : Math.min(1, (v - a[0]) / (b[0] - a[0]));
+  return [Math.round(a[1]+(b[1]-a[1])*f), Math.round(a[2]+(b[2]-a[2])*f), Math.round(a[3]+(b[3]-a[3])*f)];
+}
 
 /* 두 가지 모드 — 과거는 위성, 미래는 예보로 짝을 맞춘다.
    강수: h63(위성 강수율) ↔ 예보 강수(mm/h) — 히트맵 등급과 같은 양이라 기본값.
@@ -1385,18 +1399,25 @@ const RAIN_WMS = "https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.
    구름 영상은 반투명이 아니라 화면을 꽉 채우는 회색조라 지도 위에 겹치지 못하고
    화면 자체를 바꾼다 — 그래서 겹치기가 아니라 모드 전환으로 만들었다. */
 const RAIN_MODES = {
-  rain:  {layer:"msg_iodc:h63",   lgdA:"0.1",  lgdB:"20 mm/h↑", satMsg:"Meteosat 위성 강수 관측",
-          fcMsg:"Open-Meteo 예보 강수 · 약 80km 격자",
+  /* fmt — 강수는 비 오는 곳만 칠하고 나머지는 비쳐야 해서 투명 PNG가 필요하다.
+     구름은 화면 전체를 채우는 사진형 영상이라 투명이 필요 없고, JPEG로 받으면
+     164KB -> 15KB로 10배 줄어든다(실측). 13프레임이면 2.1MB -> 200KB. */
+  rain:  {layer:"msg_iodc:h63", fmt:"image/png&transparent=true", dark:false,
+          lgdA:"0.1",  lgdB:"20 mm/h↑", satMsg:"Meteosat 위성 강수 관측",
+          fcMsg:"Open-Meteo 예보 강수 · 약 55km 격자",
           note:`왼쪽 20%(회색 구간)는 <b>Meteosat 위성이 실제로 관측한 강수</b>(15분 간격),
-            오른쪽은 <b>Open-Meteo 예보 강수</b>(1시간 간격 · 약 80km 격자)입니다. 위성은 지나간
+            오른쪽은 <b>Open-Meteo 예보 강수</b>(1시간 간격 · 약 55km 격자)입니다. 위성은 지나간
             하늘만 찍고 예보는 앞만 보므로, 두 구간은 서로 다른 출처의 같은 양(mm/h)을 이어
             붙인 것입니다. 탄자니아는 기상 레이더가 없어 과거 구간을 위성으로 대체했습니다.`},
-  cloud: {layer:"msg_iodc:ir108", lgdA:"맑음", lgdB:"두꺼운 구름", satMsg:"Meteosat 적외 구름 영상",
-          fcMsg:"Open-Meteo 예보 운량 · 약 80km 격자",
-          note:`왼쪽 20%는 <b>Meteosat 적외(10.8μm) 구름 영상</b>으로, 방송에서 보는 그 화면입니다
-            — 밝을수록 구름 상단이 차갑고 두껍습니다(밤에도 보입니다). 오른쪽은 <b>Open-Meteo
-            예보 운량</b>(%)입니다. <b>구름이 두껍다고 반드시 비가 오는 건 아니므로</b>, 작업 중단
-            판단에는 강수 모드를 쓰세요 — 위험등급도 강수 기준입니다.`}
+  cloud: {layer:"msg_iodc:ir108", fmt:"image/jpeg", dark:true,
+          lgdA:"맑음", lgdB:"두꺼운 구름", satMsg:"Meteosat 적외 구름 영상",
+          fcMsg:"Open-Meteo 예보 운량 · 약 55km 격자",
+          note:`왼쪽 20%는 <b>Meteosat 적외(10.8μm) 구름 영상</b>(3km 해상도), 오른쪽은
+            <b>Open-Meteo 예보 운량</b>(%·약 55km 격자)입니다. 경계에서 화면이 갑자기
+            거칠어지는 건 두 자료의 성격이 달라서입니다 — 위성은 <b>구름 상단 온도</b>를
+            찍은 실제 관측이고 예보는 <b>격자별 운량 예측</b>이라, 해상도도 재는 값도
+            다릅니다. <b>구름이 두껍다고 반드시 비가 오는 건 아니므로</b> 작업 중단 판단에는
+            강수 모드를 쓰세요 — 위험등급도 강수 기준입니다.`}
 };
 
 let RAINGRID = null;        // /api/rain-grid 응답 캐시(모달을 다시 열어도 재요청 안 함)
@@ -1431,20 +1452,29 @@ function initRain(activeName){
   let mode = "rain";
 
   /* 지도 윤곽 — 현재 granularity의 경계를 그대로 쓰되, 열려 있는 지역만 강조한다.
-     잔지바르 인셋은 여기선 생략(본토 좌표계 그대로라 인셋은 화면 밖). */
-  $("#rainGeo").innerHTML = areaMap().map(g => {
-    const on = g.name === activeName;
-    return `<path d="${toPath(g.rings, px, py)}" fill="none"
-      stroke="${on ? "var(--accent)" : "var(--mapline)"}" stroke-width="${on ? 2.4 : .7}"
-      stroke-linejoin="round" opacity="${on ? 1 : .55}"/>`;
-  }).join("");
+     잔지바르 인셋은 여기선 생략(본토 좌표계 그대로라 인셋은 화면 밖).
+     어두운 위성 화면에서는 회색 경계선이 묻히므로 노란색으로 바꾼다(기상청 화면과 같은 이유). */
+  function paintGeo(dark){
+    const base = dark ? "#ffd34d" : "var(--mapline)";
+    const hi   = dark ? "#ffffff" : "var(--accent)";
+    $("#rainGeo").innerHTML = areaMap().map(g => {
+      const on = g.name === activeName;
+      return `<path d="${toPath(g.rings, px, py)}" fill="none"
+        stroke="${on ? hi : base}" stroke-width="${on ? 2.4 : (dark ? 1 : .7)}"
+        stroke-linejoin="round" opacity="${on ? 1 : (dark ? .8 : .55)}"/>`;
+    }).join("");
+  }
+  paintGeo(false);
 
   /* 위성 프레임은 미리 받아 둔다 — 프레임당 1~7초 걸려서 슬라이더를 움직인 뒤
      받기 시작하면 늦다. 브라우저가 알아서 병렬로 처리하고, EUMETSAT이 7일
      캐시 헤더를 주므로 두 번째부터는 즉시 뜬다. */
-  const satUrl = (i, m) => RAIN_WMS + RAIN_MODES[m || mode].layer
-    + "&bbox=" + [LAT1, LON0, LAT0, LON1].join(",")
-    + "&time=" + rainSatTime(RAIN_PAST - i).toISOString().replace(".000", "");
+  const satUrl = (i, m) => {
+    const M = RAIN_MODES[m || mode];
+    return RAIN_WMS + "&format=" + M.fmt + "&layers=" + M.layer
+      + "&bbox=" + [LAT1, LON0, LAT0, LON1].join(",")
+      + "&time=" + rainSatTime(RAIN_PAST - i).toISOString().replace(".000", "");
+  };
   const prefetched = {};
   function prefetch(m){
     if (prefetched[m]) return;
@@ -1468,11 +1498,18 @@ function initRain(activeName){
     }).join("");
   }
 
+  /* 캔버스 해상도는 모드마다 다르다 — 예보 격자는 성겨서 저해상도로 그려도 CSS가
+     부드럽게 늘려주지만, 위성 영상은 원본이 420px라 그대로 받아야 디테일이 산다. */
+  function sizeCanvas(w, h){
+    if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+  }
+
   function drawForecast(hourIdx){
     const g = RAINGRID;
+    const cloud = mode === "cloud";
+    sizeCanvas(180, 181);
     ctx.clearRect(0, 0, cv.width, cv.height);
     if (!g) return;
-    const cloud = mode === "cloud";
     const src = cloud ? g.clouds : g.cells;
     if (!src) return;
     const N = g.n, W = cv.width, H = cv.height;
@@ -1486,13 +1523,11 @@ function initRain(activeName){
                 + (at(i0,j0+1)*(1-fx) + at(i0+1,j0+1)*fx) * fy;
         const p = (y * W + x) * 4;
         if (cloud){
-          /* 운량 — 위성 쪽을 반전해서 "구름=어두운 음영"으로 통일했으므로 예보도
-             같은 방향으로 그린다(구름이 많을수록 진해짐). 30% 미만은 안 그린다. */
-          if (v < 30) continue;
-          const t = Math.min(1, (v - 30) / 70);
-          const gray = Math.round(150 - t * 105);
-          img.data[p] = gray; img.data[p+1] = gray; img.data[p+2] = gray;
-          img.data[p+3] = Math.round(45 + t * 135);
+          /* 운량 % 를 위성 적외와 같은 색상표로 칠한다 — 과거(위성)에서 미래(예보)로
+             넘어갈 때 색이 튀지 않도록. 운량 0%가 곧 IR 최저 밝기는 아니므로 하한을
+             조금 올려 잡았다. */
+          const c = irColor(Math.round(30 + Math.min(100, v) / 100 * 210));
+          img.data[p] = c[0]; img.data[p+1] = c[1]; img.data[p+2] = c[2]; img.data[p+3] = 255;
         } else {
           const c = rainColor(v);
           if (!c) continue;
@@ -1503,14 +1538,47 @@ function initRain(activeName){
     ctx.putImageData(img, 0, 0);
   }
 
+  /* 위성 적외 영상에 색을 입혀 캔버스에 그린다(기상청 COMS 스타일).
+     EUMETSAT이 CORS를 열어 두어(access-control-allow-origin: *) crossOrigin으로
+     받으면 캔버스에서 픽셀을 읽을 수 있다 — 없으면 캔버스가 오염돼 읽기가 막힌다. */
+  const irCache = {};
+  function drawSatColored(url){
+    let im = irCache[url];
+    if (!im){
+      im = irCache[url] = new Image();
+      im.crossOrigin = "anonymous";
+      im.onload = () => { if (satUrl(frame) === url) paint(im); };
+      im.src = url;
+    }
+    if (im.complete && im.naturalWidth) paint(im);
+    function paint(image){
+      sizeCanvas(image.naturalWidth, image.naturalHeight);
+      ctx.drawImage(image, 0, 0);
+      let d;
+      try { d = ctx.getImageData(0, 0, cv.width, cv.height); }
+      catch (e) { return; }   // CORS 실패 시 원본 흑백이라도 남겨 둔다
+      const a = d.data;
+      for (let i = 0; i < a.length; i += 4){
+        const c = irColor(a[i]);      // 흑백이라 R 하나만 봐도 된다
+        a[i] = c[0]; a[i+1] = c[1]; a[i+2] = c[2]; a[i+3] = 255;
+      }
+      ctx.putImageData(d, 0, 0);
+    }
+  }
+
   function render(){
     const past = frame < RAIN_PAST;
-    sat.hidden = !past;
-    cv.style.display = past ? "none" : "block";
-
     const M = RAIN_MODES[mode];
+    /* 구름 모드는 과거·미래 둘 다 캔버스에 색을 입혀 그린다(위성은 색상표 적용,
+       예보는 같은 색상표로 운량 렌더링). 강수 모드만 과거를 <img>로 겹친다 —
+       투명 PNG라 밝은 지도 위에 그대로 올리면 되기 때문. */
+    const useImg = past && !M.dark;
+    sat.hidden = !useImg;
+    cv.style.display = useImg ? "none" : "block";
+
     if (past){
-      sat.src = satUrl(frame);
+      if (useImg) sat.src = satUrl(frame);
+      else drawSatColored(satUrl(frame));
       const t = rainSatTime(RAIN_PAST - frame);
       const mins = Math.round((Date.now() - t.getTime()) / 60000);
       $("#rainBig").textContent = t.toLocaleTimeString("ko-KR",
@@ -1539,12 +1607,12 @@ function initRain(activeName){
     $("#rainLgdA").textContent = M.lgdA;
     $("#rainLgdB").textContent = M.lgdB;
     $("#rainNote").innerHTML = M.note;
-    /* 적외 영상은 원본이 "구름=흰색, 지면=검정"이라 처음엔 무대를 어둡게 깔았는데,
-       대시보드의 다른 화면과 따로 놀고 구름 아래 어느 주인지도 안 보였다(사용자 지적).
-       대신 영상을 반전(구름=어둡게)해서 multiply로 지도에 얹는다 — 밝은 지도는 그대로
-       두고 구름만 회색 음영으로 덮이므로, 어느 지역이 구름 아래인지 바로 읽힌다. */
-    sat.style.filter = m === "cloud" ? "invert(1) contrast(1.25)" : "";
-    sat.style.mixBlendMode = m === "cloud" ? "multiply" : "";
+    /* 구름 모드는 기상청 적외영상처럼 짙은 남색 배경 + 흰 구름으로 간다.
+       처음엔 흑백 원본을 그대로 어두운 배경에 얹었다가 "명확하게 안 보인다"는 지적을
+       받았는데, 문제는 어두운 게 아니라 대비와 경계선이었다 — 색상표(irColor)로
+       대비를 세우고 경계선을 노란색으로 바꾸면 그 화면처럼 또렷해진다. */
+    stage.style.background = m === "cloud" ? "#0a1a33" : "";
+    paintGeo(m === "cloud");
     drawRamp();
     render();
   }
