@@ -69,6 +69,23 @@ async function jget(url, timeoutMs = 15000) {
   }
 }
 
+// 예보는 한 번 실패했다고 점검 전체를 접기엔 아깝다 — 평소 응답이 1~2초인데(실측:
+// 주 31곳 0.9초, 군 170곳 2.1초) 가끔 멈추거나 429가 나서 15초 타임아웃에 걸린다.
+// 25회 중 2회가 그렇게 실패했고, 실패하면 그 회차 점검이 통째로 건너뛰어진다.
+// 그래서 짧게 두 번 시도한다(12초×2 = 최악 25초, 함수 제한 안).
+async function jgetRetry(url, timeoutMs = 12000, tries = 2) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await jget(url, timeoutMs);
+    } catch (e) {
+      last = e;
+      if (i < tries - 1) await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+  throw new Error(last.message + " (" + tries + "회 시도)");
+}
+
 // require()로 정적 로드 — Vercel의 빌드 시 번들러(@vercel/nft)가 require() 호출을
 // 추적해 이 JSON들을 함수 배포물에 자동 포함시킨다. fs.readFile(런타임 경로)는
 // 이 추적을 타지 않아 배포 후 "파일 없음"으로 깨질 수 있어 피한다.
@@ -99,10 +116,13 @@ module.exports = async (req, res) => {
   const fcParams = `&daily=precipitation_sum,temperature_2m_max,apparent_temperature_max,wind_gusts_10m_max&forecast_days=7&timezone=${TZ}`;
 
   const [fcR, fcDR, flR, gdR, eqR] = await Promise.allSettled([
-    jget(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${fcParams}`),
+    // 이 둘만 재시도한다 — 주 예보는 없으면 점검 자체가 불가능하고(아래 502),
+    // 군 예보는 없으면 메일이 주 단위로 떨어져 쓸모가 준다. 나머지 셋은 없어도
+    // 해당 축만 빠지므로 한 번만 시도한다.
+    jgetRetry(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${fcParams}`),
     // 위험 알림 메일은 군(Wilaya) 단위로 보내야 해서(대시보드 토글과 같은 이유 — 어느
     // 주가 아니라 어느 군인지까지 알아야 실무적으로 쓸모 있다) 170곳 예보를 따로 받는다.
-    jget(`https://api.open-meteo.com/v1/forecast?latitude=${dlat}&longitude=${dlon}${fcParams}`),
+    jgetRetry(`https://api.open-meteo.com/v1/forecast?latitude=${dlat}&longitude=${dlon}${fcParams}`),
     jget(`https://flood-api.open-meteo.com/v1/flood?latitude=${rlat}&longitude=${rlon}&daily=river_discharge,river_discharge_mean&forecast_days=14`),
     jget(`https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?country=Tanzania&alertlevel=Green;Orange;Red`, 12000),
     jget(
