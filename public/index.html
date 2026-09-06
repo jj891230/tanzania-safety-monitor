@@ -1409,14 +1409,20 @@ const RAIN_MODES = {
             오른쪽은 <b>Open-Meteo 예보 강수</b>(1시간 간격 · 약 55km 격자)입니다. 위성은 지나간
             하늘만 찍고 예보는 앞만 보므로, 두 구간은 서로 다른 출처의 같은 양(mm/h)을 이어
             붙인 것입니다. 탄자니아는 기상 레이더가 없어 과거 구간을 위성으로 대체했습니다.`},
-  cloud: {layer:"msg_iodc:ir108", fmt:"image/jpeg", dark:true,
+  /* 구름은 두 장을 겹쳐 만든다 — 적외(ir108) 하나만 쓰면 낮고 따뜻한 구름이 지면과
+     구분되지 않아 "위성은 맑은데 예보는 흐림"이 된다(실제로 도도마 전체 운량 86%가
+     전부 낮은구름이라 적외에 안 잡히는 걸 확인했다). 구름탐지(clm)로 구름 위치를,
+     적외로 구름 높이(밝기)를 잡으면 낮은 구름은 회색, 높은 구름은 흰색으로 나온다. */
+  cloud: {layer:"msg_iodc:ir108", mask:"msg_iodc:clm", fmt:"image/jpeg", dark:true,
           lgdA:"맑음", lgdB:"두꺼운 구름", satMsg:"Meteosat 적외 구름 영상",
           fcMsg:"Open-Meteo 예보 운량 · 약 55km 격자",
-          note:`왼쪽 20%는 <b>Meteosat 적외(10.8μm) 구름 영상</b>(3km 해상도), 오른쪽은
-            <b>Open-Meteo 예보 운량</b>(%·약 55km 격자)입니다. 경계에서 화면이 갑자기
-            거칠어지는 건 두 자료의 성격이 달라서입니다 — 위성은 <b>구름 상단 온도</b>를
-            찍은 실제 관측이고 예보는 <b>격자별 운량 예측</b>이라, 해상도도 재는 값도
-            다릅니다. <b>구름이 두껍다고 반드시 비가 오는 건 아니므로</b> 작업 중단 판단에는
+          note:`왼쪽 20%는 <b>Meteosat 위성 관측</b>(구름탐지로 위치, 적외 10.8μm로 높이),
+            오른쪽은 <b>Open-Meteo 예보</b>(전체 운량으로 위치, 중·상층운으로 높이)입니다.
+            양쪽 모두 <b>낮은 구름은 회색, 높고 두꺼운 구름은 흰색</b>으로 같은 기준입니다.
+            적외 영상만 쓰면 낮고 따뜻한 구름이 지면과 구분되지 않아 "위성은 맑은데 예보는
+            흐림"으로 어긋나기 때문에 구름탐지를 함께 씁니다. 해상도는 위성 3km,
+            예보 약 55km로 달라 예보 쪽이 더 뭉개져 보입니다.
+            <b>구름이 두껍다고 반드시 비가 오는 건 아니므로</b> 작업 중단 판단에는
             강수 모드를 쓰세요 — 위험등급도 강수 기준입니다.`}
 };
 
@@ -1469,9 +1475,9 @@ function initRain(activeName){
   /* 위성 프레임은 미리 받아 둔다 — 프레임당 1~7초 걸려서 슬라이더를 움직인 뒤
      받기 시작하면 늦다. 브라우저가 알아서 병렬로 처리하고, EUMETSAT이 7일
      캐시 헤더를 주므로 두 번째부터는 즉시 뜬다. */
-  const satUrl = (i, m) => {
+  const satUrl = (i, m, layer) => {
     const M = RAIN_MODES[m || mode];
-    return RAIN_WMS + "&format=" + M.fmt + "&layers=" + M.layer
+    return RAIN_WMS + "&format=" + M.fmt + "&layers=" + (layer || M.layer)
       + "&bbox=" + [LAT1, LON0, LAT0, LON1].join(",")
       + "&time=" + rainSatTime(RAIN_PAST - i).toISOString().replace(".000", "");
   };
@@ -1479,7 +1485,11 @@ function initRain(activeName){
   function prefetch(m){
     if (prefetched[m]) return;
     prefetched[m] = true;
-    for (let i = 0; i <= RAIN_PAST; i++) new Image().src = satUrl(i, m);
+    const M = RAIN_MODES[m];
+    for (let i = 0; i <= RAIN_PAST; i++){
+      new Image().src = satUrl(i, m);
+      if (M.mask) new Image().src = satUrl(i, m, M.mask);
+    }
   }
   prefetch("rain");
 
@@ -1512,21 +1522,26 @@ function initRain(activeName){
     if (!g) return;
     const src = cloud ? g.clouds : g.cells;
     if (!src) return;
+    const hiSrc = cloud ? (g.cloudsHi || g.clouds) : null;
     const N = g.n, W = cv.width, H = cv.height;
     const img = ctx.createImageData(W, H);
-    const at = (i, j) => src[Math.max(0,Math.min(N-1,j)) * N + Math.max(0,Math.min(N-1,i))][hourIdx] ?? 0;
+    const samp = (arr, i, j) => arr[Math.max(0,Math.min(N-1,j)) * N + Math.max(0,Math.min(N-1,i))][hourIdx] ?? 0;
+    const bilin = (arr, i0, j0, fx, fy) =>
+      (samp(arr,i0,j0)*(1-fx) + samp(arr,i0+1,j0)*fx) * (1-fy)
+      + (samp(arr,i0,j0+1)*(1-fx) + samp(arr,i0+1,j0+1)*fx) * fy;
     for (let y = 0; y < H; y++){
       const gy = (y + .5) / H * N - .5, j0 = Math.floor(gy), fy = gy - j0;
       for (let x = 0; x < W; x++){
         const gx = (x + .5) / W * N - .5, i0 = Math.floor(gx), fx = gx - i0;
-        const v = (at(i0,j0)*(1-fx) + at(i0+1,j0)*fx) * (1-fy)
-                + (at(i0,j0+1)*(1-fx) + at(i0+1,j0+1)*fx) * fy;
+        const v = bilin(src, i0, j0, fx, fy);
         const p = (y * W + x) * 4;
         if (cloud){
-          /* 운량 % 를 위성 적외와 같은 색상표로 칠한다 — 과거(위성)에서 미래(예보)로
-             넘어갈 때 색이 튀지 않도록. 운량 0%가 곧 IR 최저 밝기는 아니므로 하한을
-             조금 올려 잡았다. */
-          const c = irColor(Math.round(30 + Math.min(100, v) / 100 * 210));
+          /* 위성 쪽과 같은 규칙 — 전체 운량으로 "구름이 있나", 중·상층운으로 "얼마나
+             높나(밝기)"를 정하고 같은 색상표로 칠한다. 낮은 구름만 있으면 회색,
+             높은 구름이 끼면 흰색이 되어 위성 프레임과 이어진다. */
+          const hi = bilin(hiSrc, i0, j0, fx, fy);
+          const t = v < 15 ? 0 : Math.max(MIN_CLOUD, Math.min(1, hi / 100)) * Math.min(1, v / 60);
+          const c = irColor(Math.round(t * 255));
           img.data[p] = c[0]; img.data[p+1] = c[1]; img.data[p+2] = c[2]; img.data[p+3] = 255;
         } else {
           const c = rainColor(v);
@@ -1541,29 +1556,61 @@ function initRain(activeName){
   /* 위성 적외 영상에 색을 입혀 캔버스에 그린다(기상청 COMS 스타일).
      EUMETSAT이 CORS를 열어 두어(access-control-allow-origin: *) crossOrigin으로
      받으면 캔버스에서 픽셀을 읽을 수 있다 — 없으면 캔버스가 오염돼 읽기가 막힌다. */
-  const irCache = {};
-  function drawSatColored(url){
-    let im = irCache[url];
+  const imgCache = {};
+  function getImg(url, onReady){
+    let im = imgCache[url];
     if (!im){
-      im = irCache[url] = new Image();
+      im = imgCache[url] = new Image();
       im.crossOrigin = "anonymous";
-      im.onload = () => { if (satUrl(frame) === url) paint(im); };
+      im.onload = onReady;
       im.src = url;
+    } else if (!im.complete) {
+      im.addEventListener("load", onReady, {once:true});
     }
-    if (im.complete && im.naturalWidth) paint(im);
-    function paint(image){
-      sizeCanvas(image.naturalWidth, image.naturalHeight);
-      ctx.drawImage(image, 0, 0);
-      let d;
-      try { d = ctx.getImageData(0, 0, cv.width, cv.height); }
-      catch (e) { return; }   // CORS 실패 시 원본 흑백이라도 남겨 둔다
-      const a = d.data;
-      for (let i = 0; i < a.length; i += 4){
-        const c = irColor(a[i]);      // 흑백이라 R 하나만 봐도 된다
-        a[i] = c[0]; a[i+1] = c[1]; a[i+2] = c[2]; a[i+3] = 255;
+    return im;
+  }
+
+  /* 구름 프레임 = 구름탐지(어디에) + 적외(얼마나 높은가)를 합성.
+     clm은 흰색=구름, 초록=맑은 육지, 파랑=맑은 바다인 분류 영상이라 "흰색이냐"로
+     구름 여부를 가른다. 구름인 곳만 적외 밝기로 칠하되 최소 밝기를 보장해서
+     낮은 구름(적외로는 지면과 비슷)도 회색으로 보이게 한다. */
+  const MIN_CLOUD = 0.34;
+  function drawSatColored(i){
+    const M = RAIN_MODES[mode];
+    const redraw = () => { if (frame === i) drawSatColored(i); };
+    const ir = getImg(satUrl(i), redraw);
+    const mk = M.mask ? getImg(satUrl(i, mode, M.mask), redraw) : null;
+    if (!ir.complete || !ir.naturalWidth) return;
+    if (mk && (!mk.complete || !mk.naturalWidth)) return;
+
+    sizeCanvas(ir.naturalWidth, ir.naturalHeight);
+    ctx.drawImage(ir, 0, 0);
+    let d;
+    try { d = ctx.getImageData(0, 0, cv.width, cv.height); }
+    catch (e) { return; }   // CORS 실패 시 원본이라도 남겨 둔다
+
+    let mdata = null;
+    if (mk){
+      const oc = document.createElement("canvas");
+      oc.width = cv.width; oc.height = cv.height;
+      const octx = oc.getContext("2d");
+      octx.drawImage(mk, 0, 0, cv.width, cv.height);
+      try { mdata = octx.getImageData(0, 0, cv.width, cv.height).data; } catch (e) {}
+    }
+
+    const a = d.data;
+    for (let p = 0; p < a.length; p += 4){
+      let v = a[p];                                  // 적외 밝기(흑백이라 R만 봐도 된다)
+      if (mdata){
+        const r = mdata[p], g = mdata[p+1], b = mdata[p+2];
+        // JPEG 압축으로 색이 번지므로 넉넉한 임계로 "흰색(구름)"을 판정한다
+        const isCloud = r > 165 && g > 165 && b > 165;
+        v = isCloud ? Math.max(Math.round(MIN_CLOUD * 255), v) : Math.min(v, 40);
       }
-      ctx.putImageData(d, 0, 0);
+      const c = irColor(v);
+      a[p] = c[0]; a[p+1] = c[1]; a[p+2] = c[2]; a[p+3] = 255;
     }
+    ctx.putImageData(d, 0, 0);
   }
 
   function render(){
@@ -1578,7 +1625,7 @@ function initRain(activeName){
 
     if (past){
       if (useImg) sat.src = satUrl(frame);
-      else drawSatColored(satUrl(frame));
+      else drawSatColored(frame);
       const t = rainSatTime(RAIN_PAST - frame);
       const mins = Math.round((Date.now() - t.getTime()) / 60000);
       $("#rainBig").textContent = t.toLocaleTimeString("ko-KR",

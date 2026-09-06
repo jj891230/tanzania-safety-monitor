@@ -67,7 +67,12 @@ module.exports = async (req, res) => {
     // 강수와 운량을 같이 받는다 — 화면에서 "강수/구름" 모드를 전환할 때 재요청이 없도록.
     // start_hour/end_hour로 필요한 48시간만 딱 잘라 받는다. forecast_days로 받으면
     // 오늘 0시부터 72시간이 와서 3분의 1이 버려진다(실측: 443KB/2.0초 → 317KB/1.5초).
-    "&hourly=precipitation,cloud_cover" +
+    // 운량을 전체/중층/상층으로 나눠 받는다. 위성 적외(10.8μm)는 낮고 따뜻한 구름을
+    // 지면과 구분하지 못해서, 전체 운량만 쓰면 "위성은 맑은데 예보는 100% 흐림"이 된다
+    // (실측: 도도마 전체 86% = 전부 낮은구름 → 적외에는 아무것도 안 보임).
+    // 그래서 화면에서는 전체 운량으로 "구름이 있는 곳"을, 중·상층운으로 "구름 높이(밝기)"를
+    // 그린다 — 위성 쪽도 구름탐지(clm)로 위치, 적외로 밝기를 잡아 같은 방식으로 맞춘다.
+    "&hourly=precipitation,cloud_cover,cloud_cover_mid,cloud_cover_high" +
     "&start_hour=" + hourStamp(0) + "&end_hour=" + hourStamp(HOURS - 1) +
     "&timezone=" + encodeURIComponent(TZ);
 
@@ -112,6 +117,14 @@ module.exports = async (req, res) => {
       .slice(start, start + HOURS)
       .map((v) => (v == null ? 0 : Math.round(v)))
   );
+  // 중·상층운 = 위성 적외가 실제로 볼 수 있는 구름. 둘 중 큰 값을 쓴다(적외 밝기는
+  // 가장 높고 차가운 구름 상단이 결정하므로).
+  const cloudsHi = list.map((p) => {
+    const mid = (p.hourly && p.hourly.cloud_cover_mid) || [];
+    const high = (p.hourly && p.hourly.cloud_cover_high) || [];
+    return mid.slice(start, start + HOURS).map((v, i) =>
+      Math.round(Math.max(v == null ? 0 : v, high[start + i] == null ? 0 : high[start + i])));
+  });
 
   // 10분 CDN 캐시 + 만료 후 1시간까지는 옛 값을 쓰면서 뒤에서 갱신(SWR).
   // 예보는 시간당 한 번 바뀌므로 이 정도면 원본 호출이 거의 안 나간다.
@@ -121,7 +134,8 @@ module.exports = async (req, res) => {
     bbox: { lon0: LON0, lon1: LON1, lat0: LAT0, lat1: LAT1 },
     n: N,
     time,
-    cells,   // 강수 mm/h
-    clouds,  // 운량 %
+    cells,     // 강수 mm/h
+    clouds,    // 전체 운량 % — 구름이 "있는 곳"
+    cloudsHi,  // 중·상층운 % — 구름 "높이(화면 밝기)". 위성 적외가 보는 것과 같은 범위
   });
 };
