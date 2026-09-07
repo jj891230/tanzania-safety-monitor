@@ -54,7 +54,11 @@ jobs:
           head -c 4000 out.json; echo
           [ "$HTTP" = "200" ] || exit 22
 
+      # 저장소 Settings → Actions → General → Workflow permissions 가 "Read and write"가 아니면
+      # push가 거부된다. 그래도 점검·발송은 이미 끝났으므로 이 단계 실패로 런 전체를 실패시키지
+      # 않는다(실패 메일 방지). 상태가 안 남으면 ALERT_MODE=changes 만 동작하지 않는다.
       - name: 경보 상태 저장(바뀐 경우에만 커밋)
+        continue-on-error: true
         run: |
           jq '.state' out.json > alert-state.json
           if git diff --quiet -- alert-state.json && [ -n "$(git ls-files alert-state.json)" ]; then
@@ -65,4 +69,4 @@ jobs:
           git add alert-state.json
           git commit -m "alert-state: $(jq -r '.summary // "update"' out.json)"
           git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}" || true
-          git push
+          git push || echo "::warning::alert-state.json push 거부 — 저장소 Settings > Actions > General > Workflow permissions 를 Read and write 로 바꿔야 ALERT_MODE=changes 가 동작합니다"
