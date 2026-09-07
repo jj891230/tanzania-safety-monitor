@@ -3,17 +3,66 @@ name: 탄자니아 안전모니터 - 경보 점검
 # Vercel Hobby 자체 크론은 하루 1회·±59분 오차라 재난 경보용으로 못 쓴다.
 # GitHub Actions를 외부 스케줄러로 써서 무료로 15분 간격을 얻는다(공개 저장소 =
 # Actions 분당 과금 없음). 함수 자체는 몇 번을 불러도 Vercel Hobby 무료 한도 안.
+#
+# 두 가지 호출:
+#   */15 * * * *  즉시 점검 — 함수의 ALERT_MODE/ALERT_MIN_LEVEL/ALERT_LEAD_DAYS 정책에 따라 발송.
+#                 ALERT_MODE=changes 를 쓰려면 "이전 상태"가 필요한데, 서버(Vercel)에는 저장소가
+#                 없으므로 이 저장소의 alert-state.json 을 상태 저장소로 쓴다: 함수가 돌려준
+#                 state 를 파일에 쓰고 바뀌었을 때만 커밋한다(= 커밋 이력이 곧 경보 일지).
+#   0 4 * * *     일일 요약(07:00 EAT) — ?digest=1 로 불러 '주의 이상' 전부를 한 통으로 보낸다.
+#
+# 이 파일은 토큰에 workflow 스코프가 없으면 git push 로 안 올라간다(GitHub 웹에서 붙여넣기).
 on:
   schedule:
     - cron: "*/15 * * * *"
-  workflow_dispatch: {} # 수동 실행 버튼(설정 검증용)
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: "일일 요약으로 호출(?digest=1)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # alert-state.json 커밋용
+
+concurrency:
+  group: alert-check
+  cancel-in-progress: false
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: 경보 점검 엔드포인트 호출
+        env:
+          ALERT_SECRET: ${{ secrets.ALERT_SECRET }}
+          MONITOR_URL: ${{ secrets.MONITOR_URL }}
         run: |
-          curl -sf --max-time 60 \
-            -H "Authorization: Bearer ${{ secrets.ALERT_SECRET }}" \
-            "${{ secrets.MONITOR_URL }}/api/check-alerts"
+          DIGEST=""
+          if [ "${{ github.event.schedule }}" = "0 4 * * *" ] || [ "${{ inputs.digest }}" = "true" ]; then DIGEST="?digest=1"; fi
+          PREV='{}'
+          if [ -s alert-state.json ]; then PREV=$(cat alert-state.json); fi
+          printf '{"prev":%s}' "$PREV" > prev.json
+          HTTP=$(curl -s --max-time 60 -o out.json -w '%{http_code}' \
+            -X POST -H "Authorization: Bearer $ALERT_SECRET" -H "Content-Type: application/json" \
+            --data @prev.json "$MONITOR_URL/api/check-alerts$DIGEST")
+          echo "HTTP $HTTP  digest=${DIGEST:-no}"
+          # 실패 시 원인 진단용으로 응답 본문(sourceFails 등)을 로그에 남긴다
+          head -c 4000 out.json; echo
+          [ "$HTTP" = "200" ] || exit 22
+
+      - name: 경보 상태 저장(바뀐 경우에만 커밋)
+        run: |
+          jq '.state' out.json > alert-state.json
+          if git diff --quiet -- alert-state.json && [ -n "$(git ls-files alert-state.json)" ]; then
+            echo "상태 변화 없음"; exit 0
+          fi
+          git config user.name "alert-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add alert-state.json
+          git commit -m "alert-state: $(jq -r '.summary // "update"' out.json)"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}" || true
+          git push
