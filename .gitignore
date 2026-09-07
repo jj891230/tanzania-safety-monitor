@@ -2,3 +2,9 @@
 .env.local
 탄자니아 ODA 기후재난 안전모니터(사무소용).html
 .github/workflows/alert-check.yml
+
+# 로컬 전용(세션 문서·백업·편집기 설정)
+.claude/
+백업_*.zip
+세션인계_*.md
+검토보고서_*.md

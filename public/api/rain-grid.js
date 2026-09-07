@@ -17,7 +17,7 @@ const LON0 = 29.45, LON1 = 40.55, LAT0 = -0.75, LAT1 = -11.95;   // template.htm
 // 더 촘촘하게 하려면 POST로 바꿔야 한다. (실측: 14→상류 1.7초/슬림 44KB,
 // 20→2.4초/89KB, 26→414 에러)
 const N = 20;
-const HOURS = 48;                 // 앞으로 몇 시간까지
+const HOURS = 50;                 // 앞으로 몇 시간까지(화면은 48시간 + 시간축 정렬 여유 2시간 — template.html fcOffset 참고)
 const TZ = "Africa/Dar_es_Salaam";
 
 function buildGrid() {
