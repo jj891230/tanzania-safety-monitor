@@ -61,6 +61,16 @@ button:hover{border-color:var(--accent);color:var(--accent)}
    으로만 정해지게 한다. */
 .stack{display:flex;flex-direction:column;gap:12px}
 .grid2>.stack>.panel{margin-bottom:0}
+/* 짝 패널의 위·아래를 맞추는 줄 — 패널은 세로 flex, .fill 안의 목록이 남는 높이를 채운다.
+   목록 상한을 두어 한 줄이 지나치게 길어지지 않게 한다(뉴스 320px, 지진·공지는 채움). */
+.grid2.eqrow{align-items:stretch}
+.grid2.eqrow>.panel{display:flex;flex-direction:column;margin-bottom:0;min-height:0}
+.grid2.eqrow .fill{flex:1;display:flex;flex-direction:column;min-height:0}
+.grid2.eqrow .fill>.alist{flex:1;min-height:110px;max-height:none}
+.grid2.eqrow #news{max-height:320px}
+.grid2.eqrow #quakes{max-height:150px}       /* 하천 게이지(6줄) 높이에 맞춘 값 — 넘치면 스크롤 */
+.grid2.eqrow #mofaNotices{max-height:210px}   /* 뉴스 패널(목록 320px) 높이에 맞춘 값 */
+.grid2.eqrow .mofa{display:flex}
 @media(max-width:1180px){.grid2{grid-template-columns:1fr}}
 
 /* ── KPI ── */
@@ -448,40 +458,37 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   </div>
 </div>
 
-<div class="grid2">
-  <!-- .stack으로 하천유량+뉴스를 한 grid 아이템으로 묶는다 — 옆 열(지진)이 더 길어도
-       이 열의 높이는 자기 내용만으로 정해진다(사용자 지적: 뉴스가 따로 전체폭 패널이라
-       오른쪽에 불필요한 여백이 남았다 -> 하천 유량 아래로, 같은 폭으로). -->
-  <div class="stack">
-    <div class="panel">
-      <div class="phead"><h2 data-t="rivers">주요 하천 유량</h2>
-        <span class="note" data-t="rivers_note">GloFAS · 세로선 = 그날의 평년값</span>
-        <span class="seg"><button id="vGauge" class="on" data-t="gauge">게이지</button><button id="vRtbl" data-t="table">숫자 표</button></span></div>
-      <div class="gwrap" id="rgauge"></div>
-      <div class="scroll" id="rtblbox" style="display:none"><table id="rtbl"></table></div>
-    </div>
-    <div class="panel">
-      <div class="phead"><h2 data-t="news">탄자니아 안전 관련 뉴스</h2><span class="note" id="newsNote">allAfrica · 안전 키워드 필터링</span></div>
-      <div class="pbody"><div class="alist" style="max-height:280px" id="news"></div></div>
-    </div>
+<!-- 아래 두 줄은 짝끼리 위·아래 테두리를 맞춘다(.eqrow = align-items:stretch). 예전엔 열마다
+     .stack으로 독립해 쌓아서 줄이 어긋났다(사용자 지적: 하천|지진, 뉴스|외교부 윗줄·아랫줄 맞추기).
+     패널을 세로 flex로 두고 목록(.fill > .alist)이 남는 높이를 채우므로, 한쪽이 길어져도
+     다른 쪽 패널이 같이 늘어나 테두리가 맞고 빈 공간은 목록 스크롤 영역이 흡수한다. -->
+<div class="grid2 eqrow">
+  <div class="panel">
+    <div class="phead"><h2 data-t="rivers">주요 하천 유량</h2>
+      <span class="note" data-t="rivers_note">GloFAS · 세로선 = 그날의 평년값</span>
+      <span class="seg"><button id="vGauge" class="on" data-t="gauge">게이지</button><button id="vRtbl" data-t="table">숫자 표</button></span></div>
+    <div class="gwrap" id="rgauge"></div>
+    <div class="scroll" id="rtblbox" style="display:none"><table id="rtbl"></table></div>
   </div>
-  <!-- 오른쪽 열도 .stack — 지진 아래에 외교부 패널을 두어 왼쪽 열(하천+뉴스)과 높이를 맞춘다.
-       외교부 패널은 처음에 KPI 아래 전체 폭이었는데 경보·공지 양쪽 다 오른쪽이 비어 보여
-       (사용자 지적) 뉴스 옆 좁은 열로 옮기고 배지·목록을 한 열에 세로로 쌓았다. -->
-  <div class="stack">
-    <div class="panel">
-      <div class="phead"><h2 data-t="quakes">최근 지진</h2>
-        <span class="note" data-t="quakes_note">USGS · M4.0↑ · 경보는 최근 30일만 반영</span></div>
-      <div class="pbody" id="eqsum"></div>
-      <div class="pbody" style="padding-top:2px"><div class="alist" style="max-height:160px" id="quakes"></div></div>
-    </div>
-    <div class="panel" id="mofapanel" hidden>
-      <div class="phead"><h2 data-t="mofa">외교부 여행경보 · 대사관 안전공지</h2>
-        <span class="note" id="mofaNote"></span></div>
-      <div class="pbody mofa">
-        <div id="mofaAlarm"></div>
-        <div class="alist" id="mofaNotices" style="max-height:176px"></div>
-      </div>
+  <div class="panel">
+    <div class="phead"><h2 data-t="quakes">최근 지진</h2>
+      <span class="note" data-t="quakes_note">USGS · M4.0↑ · 경보는 최근 30일만 반영</span></div>
+    <div class="pbody" id="eqsum"></div>
+    <div class="pbody fill" style="padding-top:2px"><div class="alist" id="quakes"></div></div>
+  </div>
+</div>
+
+<div class="grid2 eqrow">
+  <div class="panel">
+    <div class="phead"><h2 data-t="news">탄자니아 안전 관련 뉴스</h2><span class="note" id="newsNote">allAfrica · 안전 키워드 필터링</span></div>
+    <div class="pbody fill"><div class="alist" id="news"></div></div>
+  </div>
+  <div class="panel" id="mofapanel" hidden>
+    <div class="phead"><h2 data-t="mofa">외교부 여행경보 · 대사관 안전공지</h2>
+      <span class="note" id="mofaNote"></span></div>
+    <div class="pbody mofa fill">
+      <div id="mofaAlarm"></div>
+      <div class="alist" id="mofaNotices"></div>
     </div>
   </div>
 </div>
