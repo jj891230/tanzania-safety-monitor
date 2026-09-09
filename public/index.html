@@ -2138,7 +2138,7 @@ function detail(name){
     <div class="mcard" role="dialog" aria-modal="true" aria-label="${t("m_detail", r)}">
       <div class="mhead">
         <div>
-          <h3>${nm(r)} <span style="font-size:12px;color:var(--ink3);font-weight:400">${EN() ? r.name : r.en}</span></h3>
+          <h3>${nm(r)} <span style="font-size:12px;color:var(--ink3);font-weight:400">${EN() ? (r.name !== nm(r) ? r.name : "") : (r.en !== r.name ? r.en : "")}</span></h3>
           <div class="meta">${t("m_town", r)}
             ${projectOf(r) ? ` · <b style="color:var(--accent)">${pj(r)}</b>` : ""}
             ${(st && !IS_PUBLIC) ? t("m_staff", st.n) : ""}</div>
@@ -2258,6 +2258,16 @@ async function loadMofa(){
   renderMofa();
   renderContact();
 }
+/* 여행경보 비고("음트와라(Mtwara) 주", "3단계 지정 지역을 제외한 지역")는 한국어로만 온다.
+   영문 화면에서는 괄호 안 영문 지명을 뽑아 "Mtwara region"으로, "…제외한 지역"은 "all other areas"로. */
+function remarkText(l){
+  const r = l.remark || (l.region === "전체" ? t("mofa_all") : l.region);
+  if (!EN()) return r;
+  if (/제외한 지역/.test(r)) return "all other areas";
+  const m = r.match(/\(([A-Za-z .'\-]+)\)/);
+  if (m) return m[1] + (/주\s*$/.test(r) ? " region" : "");
+  return r;
+}
 function renderMofa(){
   const p = $("#mofapanel");
   if (!MOFA) return;
@@ -2267,7 +2277,7 @@ function renderMofa(){
   $("#mofaNote").textContent = t("mofa_note", nts.length) + (MOFA.checkedAt ? ` · ${MOFA.checkedAt.slice(0,10)}` : "");
   const a = MOFA.alarm;
   $("#mofaAlarm").innerHTML = (a && a.levels.length ? a.levels.map(l =>
-      `<div class="tl tl${l.lvl}"><b>${hesc(t("mofa_lvl", l))}</b><span>${hesc(l.remark || (l.region === "전체" ? t("mofa_all") : l.region))}</span></div>`).join("")
+      `<div class="tl tl${l.lvl}"><b>${hesc(t("mofa_lvl", l))}</b><span>${hesc(remarkText(l))}</span></div>`).join("")
     : `<div class="empty">${t("mofa_fail")}</div>`)
     + `<div class="src">${t("mofa_src")} · <a href="https://www.0404.go.kr/ntnSafetyInfo/list" target="_blank" rel="noopener noreferrer">0404.go.kr</a></div>`;
   $("#mofaNotices").innerHTML = nts.length ? nts.map((x, i) => `
