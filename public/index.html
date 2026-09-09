@@ -292,17 +292,17 @@ tbody tr:hover{background:var(--line2)}
 .chk.yes.on{background:var(--l1bg);border-color:var(--l1);color:var(--l1);font-weight:700}
 .chk.no.on{background:var(--l4bg);border-color:var(--l4);color:var(--l4);font-weight:700}
 /* ── 외교부 여행경보 · 대사관 안전공지 ── */
-.mofa{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,2.2fr);gap:12px;align-items:start}
-@media(max-width:880px){.mofa{grid-template-columns:1fr}}
-.tl{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:7px;border:1px solid var(--line);
-  border-left:5px solid var(--l0);background:var(--bg);margin-bottom:7px}
-.tl b{font-size:12.5px}
-.tl span{font-size:11px;color:var(--ink2)}
+.mofa{display:block}
+#mofaAlarm{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch;margin-bottom:8px}
+.tl{display:flex;flex-direction:column;gap:1px;padding:5px 9px;border-radius:6px;border:1px solid var(--line);
+  border-left:4px solid var(--l0);background:var(--bg);flex:1 1 150px;min-width:0}
+.tl b{font-size:12px;white-space:nowrap}
+.tl span{font-size:10.5px;color:var(--ink2)}
 .tl.tl1{border-left-color:#2e5c8a} .tl.tl1 b{color:#2e5c8a}
 .tl.tl2{border-left-color:var(--l2)} .tl.tl2 b{color:var(--l2)}
 .tl.tl3{border-left-color:var(--l4)} .tl.tl3 b{color:var(--l4)}
 .tl.tl4{border-left-color:#1b2430} .tl.tl4 b{color:var(--ink)}
-.mofa .src{font-size:10.5px;color:var(--ink3);margin-top:4px}
+.mofa .src{font-size:10.5px;color:var(--ink3);margin:2px 0 6px;flex:1 1 100%}
 .mofa .src a{color:var(--accent);text-decoration:none}
 .nt{padding:7px 9px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--panel)}
 .nt .nth{display:flex;gap:8px;align-items:baseline;cursor:pointer}
@@ -416,15 +416,6 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 <div class="brief" id="brief"></div>
 <div class="kpis" id="kpis"></div>
 
-<div class="panel" id="mofapanel" hidden>
-  <div class="phead"><h2 data-t="mofa">외교부 여행경보 · 대사관 안전공지</h2>
-    <span class="note" id="mofaNote"></span></div>
-  <div class="pbody mofa">
-    <div id="mofaAlarm"></div>
-    <div><div class="alist" id="mofaNotices" style="max-height:230px"></div></div>
-  </div>
-</div>
-
 <div class="panel" id="mappanel">
   <div class="phead"><h2 data-t="map">전국 위험지도</h2>
     <span class="seg"><button id="gMkoa" class="on" data-t="mkoa">주(Mkoa)</button><button id="gWilaya" data-t="wilaya">군(Wilaya)</button></span>
@@ -474,11 +465,24 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
       <div class="pbody"><div class="alist" style="max-height:280px" id="news"></div></div>
     </div>
   </div>
-  <div class="panel">
-    <div class="phead"><h2 data-t="quakes">최근 지진</h2>
-      <span class="note" data-t="quakes_note">USGS · M4.0↑ · 경보는 최근 30일만 반영</span></div>
-    <div class="pbody" id="eqsum"></div>
-    <div class="pbody" style="padding-top:2px"><div class="alist" style="max-height:212px" id="quakes"></div></div>
+  <!-- 오른쪽 열도 .stack — 지진 아래에 외교부 패널을 두어 왼쪽 열(하천+뉴스)과 높이를 맞춘다.
+       외교부 패널은 처음에 KPI 아래 전체 폭이었는데 경보·공지 양쪽 다 오른쪽이 비어 보여
+       (사용자 지적) 뉴스 옆 좁은 열로 옮기고 배지·목록을 한 열에 세로로 쌓았다. -->
+  <div class="stack">
+    <div class="panel">
+      <div class="phead"><h2 data-t="quakes">최근 지진</h2>
+        <span class="note" data-t="quakes_note">USGS · M4.0↑ · 경보는 최근 30일만 반영</span></div>
+      <div class="pbody" id="eqsum"></div>
+      <div class="pbody" style="padding-top:2px"><div class="alist" style="max-height:160px" id="quakes"></div></div>
+    </div>
+    <div class="panel" id="mofapanel" hidden>
+      <div class="phead"><h2 data-t="mofa">외교부 여행경보 · 대사관 안전공지</h2>
+        <span class="note" id="mofaNote"></span></div>
+      <div class="pbody mofa">
+        <div id="mofaAlarm"></div>
+        <div class="alist" id="mofaNotices" style="max-height:176px"></div>
+      </div>
+    </div>
   </div>
 </div>
 
