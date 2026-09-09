@@ -29,6 +29,9 @@
 //    대시보드는 '주의'인데 메일은 '심각'으로 나가 신뢰를 잃는다.
 
 const { fetchGdacs } = require("./_lib/gdacs.js");
+// 외교부 여행경보·대사관 안전공지(DATA_GO_KR_KEY 없으면 조용히 건너뛴다). 여행경보 단계가
+// 바뀌면 그것만으로도 즉시 메일을 보낸다 — 이 시스템에서 유일한 "정부의 공식 판단"이라서다.
+const { fetchMofa } = require("./_lib/mofa.js");
 
 const TZ = "Africa/Dar_es_Salaam";
 const LV = ["정상", "관심", "주의", "경계", "심각"];
@@ -158,7 +161,7 @@ module.exports = async (req, res) => {
   const from = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
   const fcParams = `&daily=precipitation_sum,temperature_2m_max,apparent_temperature_max,wind_gusts_10m_max&forecast_days=7&timezone=${TZ}`;
 
-  const [fcR, fcDR, flR, gdR, eqR] = await Promise.allSettled([
+  const [fcR, fcDR, flR, gdR, eqR, mfR] = await Promise.allSettled([
     // 이 둘만 재시도한다 — 주 예보는 없으면 점검 자체가 불가능하고(아래 502),
     // 군 예보는 없으면 메일이 주 단위로 떨어져 쓸모가 준다. 나머지 셋은 없어도
     // 해당 축만 빠지므로 한 번만 시도한다.
@@ -172,6 +175,9 @@ module.exports = async (req, res) => {
     jget(
       `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-13&maxlatitude=0&minlongitude=28&maxlongitude=42&minmagnitude=4&starttime=${from}&limit=100`
     ),
+    process.env.DATA_GO_KR_KEY
+      ? fetchMofa({ key: process.env.DATA_GO_KR_KEY, timeoutMs: 10000, notices: 10 })
+      : Promise.reject(new Error("DATA_GO_KR_KEY 없음(선택)")),
   ]);
 
   const fc = fcR.status === "fulfilled" ? fcR.value : null;
@@ -179,12 +185,16 @@ module.exports = async (req, res) => {
   const fl = flR.status === "fulfilled" ? flR.value : null;
   const gdRaw = gdR.status === "fulfilled" ? gdR.value : null;
   const eqRaw = eqR.status === "fulfilled" ? eqR.value : null;
+  const mofa = mfR.status === "fulfilled" ? mfR.value : null;
+  const alarmNow = mofa && mofa.alarm ? mofa.alarm.summaryKo : null;
   const sourceFails = [
     !fc && "forecast: " + fcR.reason?.message,
     !fcD && "forecast(군): " + fcDR.reason?.message,
     !fl && "flood: " + flR.reason?.message,
     !gdRaw && "gdacs: " + gdR.reason?.message,
     !eqRaw && "usgs: " + eqR.reason?.message,
+    !mofa && process.env.DATA_GO_KR_KEY && "mofa: " + mfR.reason?.message,
+    mofa && mofa.errors && mofa.errors.length && "mofa: " + mofa.errors.join("; "),
   ].filter(Boolean);
 
   if (!fc) {
@@ -348,7 +358,9 @@ module.exports = async (req, res) => {
     mailKind = MODE === "changes" ? "changes" : "always";
   }
   // 다음 호출에 넘길 상태 — 현재 '주의 이상'인 곳 전부(등급·최초 감지 시각). 요약 호출도 같은 값을 돌려준다.
-  const state = { at: new Date().toISOString(), unit, items: {} };
+  const state = { at: new Date().toISOString(), unit, items: {}, mofa: alarmNow || (prev && prev.mofa) || null };
+  // 여행경보 단계 변경 — 이전 상태가 있고 이번에 값을 받았는데 다르면(모드 무관, 요약 호출 제외)
+  const alarmChanged = !isDigest && !!(prev && prev.mofa && alarmNow && prev.mofa !== alarmNow);
   for (const a of current) {
     const p = prevItems[a.key];
     state.items[a.key] = { lv: a.risk, since: p && p.lv === a.risk ? p.since || state.at : state.at, hits: a.hits.map((h) => h.ax + ":" + h.lv) };
@@ -356,11 +368,16 @@ module.exports = async (req, res) => {
 
   let posted = false;
   const notifyErrors = [];
-  const shouldSend = mailList.length > 0;
+  const shouldSend = mailList.length > 0 || alarmChanged;
   const host = req.headers["x-forwarded-host"] || req.headers.host || "";
   const dashUrl = host ? `https://${host}/` : "";
   const stamp = new Date().toLocaleString("ko-KR", { timeZone: TZ });
   const topLv = mailList.length ? Math.max(...mailList.map((a) => a.risk)) : 0;
+  const alarmKo = alarmNow ? `외교부 여행경보: ${alarmNow}` + (alarmChanged ? ` ← 변경됨(이전: ${prev.mofa})` : "") : "";
+  const alarmEn = mofa && mofa.alarm ? `MOFA travel advisory: ${mofa.alarm.summaryEn}` + (alarmChanged ? " (changed)" : "") : "";
+  // 일일 요약에는 최근 7일 대사관 안전공지 제목을 함께 싣는다
+  const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
+  const recentNotices = isDigest && mofa && mofa.notices ? mofa.notices.filter((x) => x.date >= weekAgo).slice(0, 5) : [];
   const policyLine = isDigest
     ? `일일 요약 · ${LV[DIGEST_LV]} 이상 전부`
     : `${LV[MIN_LV]} 이상` + (LEAD < 7 ? ` · 오늘~D+${LEAD - 1}` : ` · 7일 예보`) + (MODE === "changes" ? " · 신규/상승분만" : "");
@@ -368,7 +385,7 @@ module.exports = async (req, res) => {
   // Slack(선택) — SLACK_WEBHOOK_URL을 넣으면 자동으로 같이 발송된다(같은 목록·같은 판단).
   if (shouldSend && process.env.SLACK_WEBHOOK_URL) {
     const lines = mailList.map((a) => `• *${nameOf(a)}* — ${a.hitsText.join(", ")}`);
-    const text = `*[탄자니아 안전모니터] ${isDigest ? "일일 요약" : "위험 등급"} ${unit} ${mailList.length}건 (최고 ${LV[topLv]})*\n${lines.join("\n")}`;
+    const text = `*[탄자니아 안전모니터] ${isDigest ? "일일 요약" : "위험 등급"} ${unit} ${mailList.length}건 (최고 ${LV[topLv]})*\n${lines.join("\n")}` + (alarmKo ? `\n${alarmKo}` : "");
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 8000);
     try {
@@ -408,8 +425,12 @@ module.exports = async (req, res) => {
       `<div style="font-family:sans-serif;font-size:14px;line-height:1.45">` +
       `<p><b>[탄자니아 안전모니터]</b> ${isDigest ? "일일 요약 —" : ""} 위험 등급 ${unit} ${mailList.length}건 · 최고 <b>${LV[topLv]}</b> (${stamp} EAT)<br>` +
       `<span style="color:#888;font-size:12px">Tanzania Safety Monitor — ${isDigest ? "daily digest" : "alert"}: ${mailList.length} ${unitEn}${mailList.length > 1 ? "s" : ""}, highest ${LV_EN[topLv]}</span></p>` +
+      (alarmKo ? `<p style="margin:4px 0 10px;padding:6px 10px;border-left:4px solid ${alarmChanged ? "#c0342b" : "#2e5c8a"};background:#f4f6f9">` +
+        `<b>${alarmKo}</b><br><span style="color:#888;font-size:12px">${alarmEn}</span></p>` : "") +
       (useDistrict ? "" : `<p style="color:#c62828">군 단위 예보 실패로 주 단위로 대체 발송</p>`) +
-      `<table style="border-collapse:collapse">${rows}</table>` +
+      (mailList.length ? `<table style="border-collapse:collapse">${rows}</table>` : `<p>기상·재난 축 즉시 알림 대상은 없습니다.</p>`) +
+      (recentNotices.length ? `<p style="margin-top:12px"><b>대사관 안전공지(최근 7일)</b><br>` +
+        recentNotices.map((x) => `${x.date} · ${x.title}`).join("<br>") + `<br><span style="color:#888;font-size:12px">전문: 대시보드 상단 패널 또는 0404.go.kr</span></p>` : "") +
       `<p style="color:#888;font-size:12px;margin-top:12px">기준: ${policyLine}. D+n = 예보 며칠째에 걸린 값인지(없으면 오늘). ` +
       `등급은 7일 예보 중 최댓값 기준이며 D+4 이후 값은 불확실성이 큽니다.` +
       (dashUrl ? ` 상세: <a href="${dashUrl}">${dashUrl}</a> (영문: <a href="${dashUrl}?lang=en">?lang=en</a>)` : "") + `</p></div>`;
@@ -425,7 +446,9 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           from: process.env.ALERT_EMAIL_FROM || "KOICA 안전모니터 <onboarding@resend.dev>",
           to: process.env.ALERT_EMAIL_TO.split(",").map((s) => s.trim()),
-          subject: `[탄자니아 안전모니터] ${isDigest ? "일일 요약 · " : ""}${LV[topLv]} ${unit} ${mailList.length}건`,
+          subject: alarmChanged && !mailList.length
+            ? `[탄자니아 안전모니터] 외교부 여행경보 변경 — ${alarmNow}`
+            : `[탄자니아 안전모니터] ${isDigest ? "일일 요약 · " : ""}${LV[topLv]} ${unit} ${mailList.length}건` + (alarmChanged ? " · 여행경보 변경" : ""),
           html,
         }),
         signal: ac.signal,
@@ -439,7 +462,7 @@ module.exports = async (req, res) => {
     }
   }
 
-  const summary = `${isDigest ? "digest" : mailKind} · ${unit} ${current.length}건 중 알림 ${mailList.length}건` + (topLv ? ` · 최고 ${LV[topLv]}` : "");
+  const summary = `${isDigest ? "digest" : mailKind} · ${unit} ${current.length}건 중 알림 ${mailList.length}건` + (topLv ? ` · 최고 ${LV[topLv]}` : "") + (alarmChanged ? " · 여행경보 변경" : "");
   res.status(200).json({
     checkedAt: new Date().toISOString(),
     policy: { mode: MODE, minLevel: MIN_LV, leadDays: LEAD, digestLevel: DIGEST_LV, digest: isDigest, hadPrev: !!prev },
@@ -455,6 +478,8 @@ module.exports = async (req, res) => {
     alerts: alerts.slice(0, 10).map(({ key, region, project, risk, lead, hitsText }) => ({ key, region, project, risk, lead, hits: hitsText })),
     districtAlerts: districtAlerts.slice(0, 15).map(({ key, district, zone, risk, lead, hitsText }) => ({ key, district, zone, risk, lead, hits: hitsText })),
     gdacsSource: gdRaw ? gdRaw.source : null,
+    travelAlarm: alarmNow,
+    travelAlarmChanged: alarmChanged,
     sourceFails,
     notifyErrors,
     state,

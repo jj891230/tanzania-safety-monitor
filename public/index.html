@@ -291,6 +291,29 @@ tbody tr:hover{background:var(--line2)}
 .chk.wa{background:#25d366;border-color:#1da851;color:#08331c;font-weight:700}
 .chk.yes.on{background:var(--l1bg);border-color:var(--l1);color:var(--l1);font-weight:700}
 .chk.no.on{background:var(--l4bg);border-color:var(--l4);color:var(--l4);font-weight:700}
+/* ── 외교부 여행경보 · 대사관 안전공지 ── */
+.mofa{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,2.2fr);gap:12px;align-items:start}
+@media(max-width:880px){.mofa{grid-template-columns:1fr}}
+.tl{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:7px;border:1px solid var(--line);
+  border-left:5px solid var(--l0);background:var(--bg);margin-bottom:7px}
+.tl b{font-size:12.5px}
+.tl span{font-size:11px;color:var(--ink2)}
+.tl.tl1{border-left-color:#2e5c8a} .tl.tl1 b{color:#2e5c8a}
+.tl.tl2{border-left-color:var(--l2)} .tl.tl2 b{color:var(--l2)}
+.tl.tl3{border-left-color:var(--l4)} .tl.tl3 b{color:var(--l4)}
+.tl.tl4{border-left-color:#1b2430} .tl.tl4 b{color:var(--ink)}
+.mofa .src{font-size:10.5px;color:var(--ink3);margin-top:4px}
+.mofa .src a{color:var(--accent);text-decoration:none}
+.nt{padding:7px 9px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;background:var(--panel)}
+.nt .nth{display:flex;gap:8px;align-items:baseline;cursor:pointer}
+.nt .nth:hover .ntt{color:var(--accent)}
+.nt .ntd{font-size:10.5px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.nt .ntt{font-size:12px;font-weight:600;flex:1}
+.nt .ntc{font-size:10px;color:var(--ink3);white-space:nowrap}
+.nt .ntx{display:none;margin-top:6px;font-size:11.5px;line-height:1.55;color:var(--ink2);white-space:pre-line;
+  border-top:1px solid var(--line2);padding-top:6px}
+.nt.open .ntx{display:block}
+
 /* ── 한 줄 브리핑 ── */
 .brief{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--panel);
   border:1px solid var(--line);border-left:4px solid var(--l0);border-radius:7px;
@@ -392,6 +415,15 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 <div class="banner" id="banner"></div>
 <div class="brief" id="brief"></div>
 <div class="kpis" id="kpis"></div>
+
+<div class="panel" id="mofapanel" hidden>
+  <div class="phead"><h2 data-t="mofa">외교부 여행경보 · 대사관 안전공지</h2>
+    <span class="note" id="mofaNote"></span></div>
+  <div class="pbody mofa">
+    <div id="mofaAlarm"></div>
+    <div><div class="alist" id="mofaNotices" style="max-height:230px"></div></div>
+  </div>
+</div>
 
 <div class="panel" id="mappanel">
   <div class="phead"><h2 data-t="map">전국 위험지도</h2>
@@ -571,6 +603,11 @@ ko: {
   공기 연장 청구의 법적 근거로는 사용할 수 없습니다.
   하천 지점은 GloFAS 격자 근사치로 현장 검증이 필요하며, 절대유량이 아닌 평년 대비 배수만 사용합니다.
   탄자니아 기상청(TMA) 공식 계절전망은 공개 API가 없어 수기 반영이 필요합니다.<br>`,
+  // 외교부
+  mofa:"외교부 여행경보 · 대사관 안전공지", mofa_note:(d) => `외교부 해외안전여행(0404.go.kr) · 공지 ${d}건`,
+  mofa_lvl:(l) => `${l.lvl}단계 ${l.ko}`, mofa_all:"전 지역", mofa_src:"자료: 외교부 여행경보제도 · 주탄자니아대사관 안전공지 (30분 갱신)",
+  mofa_notices:"대사관 안전공지", mofa_empty:"최근 안전공지 없음", mofa_fail:"외교부 자료 불러오기 실패",
+  mofa_more:"제목을 누르면 본문", mofa_notext:"본문이 이미지·첨부로만 제공됩니다 — 0404.go.kr에서 확인", emb_line:(e) => `주탄자니아대한민국대사관 ${e.tel}` + (e.urgency ? ` · 영사콜센터(24시간) ${e.urgency}` : ""),
   // 지도
   maplegend:(n, pub, wil) => `행정경계 ${units(n)} · <b style="color:var(--accent)">파란 테두리 = `
     + (pub ? "KOICA 사업 소재지" : "파견인력 배치") + (wil ? "(주 단위 · 해당 주 전체 표시)" : "")
@@ -697,6 +734,10 @@ en: {
   or as legal evidence for extension-of-time claims.
   River points are GloFAS grid approximations that need field verification; only the ratio to normal is used, never absolute discharge.
   The Tanzania Meteorological Authority (TMA) seasonal outlook has no public API and must be added manually.<br>`,
+  mofa:"MOFA travel advisory · Embassy safety notices", mofa_note:(d) => `Korean MOFA (0404.go.kr) · ${d} notices`,
+  mofa_lvl:(l) => `Level ${l.lvl} · ${l.en}`, mofa_all:"whole country", mofa_src:"Source: Korean MOFA travel advisory · Embassy of Korea in Tanzania notices (refreshed every 30 min). Notices are in Korean.",
+  mofa_notices:"Embassy safety notices", mofa_empty:"No recent notices", mofa_fail:"MOFA data unavailable",
+  mofa_more:"click a title to expand", mofa_notext:"Body available only as image/attachment — see 0404.go.kr", emb_line:(e) => `Embassy of Korea in Tanzania ${e.tel}` + (e.urgency ? ` · Consular call centre (24h) ${e.urgency}` : ""),
   maplegend:(n, pub, wil) => `${units(n)} · <b style="color:var(--accent)">blue outline = `
     + (pub ? "KOICA project location" : "field staff deployed") + (wil ? " (region-level · whole region shown)" : "")
     + `</b> · ◆ river anomaly · click a ${UNIT()} for details`,
@@ -792,9 +833,15 @@ function applyLang(){
   $("#theme").textContent = document.documentElement.getAttribute("data-theme") === "dark" ? t("theme_light") : t("theme_dark");
   $("#foot-text").innerHTML = t("footer");
   $("#subtitle").innerHTML = t("subtitle", IS_PUBLIC);
-  const oc = EN() ? (OFFICE_CONTACT_EN || OFFICE_CONTACT) : OFFICE_CONTACT;
-  if (IS_PUBLIC && oc) $("#foot-contact").innerHTML = "<b>" + t("contact_label") + "</b> · " + oc + "<br>";
+  renderContact();
   $("#pp-body").innerHTML = t(IS_PUBLIC ? "pp_public" : "pp_internal");
+}
+/* 푸터 연락처 — 사무소 연락처(공개판) + 외교부 API에서 받은 대사관 대표번호·영사콜센터(양쪽 판) */
+function renderContact(){
+  const oc = IS_PUBLIC ? (EN() ? (OFFICE_CONTACT_EN || OFFICE_CONTACT) : OFFICE_CONTACT) : "";
+  const e = MOFA && MOFA.embassy && MOFA.embassy.tel ? t("emb_line", MOFA.embassy) : "";
+  const parts = [oc, e].filter(Boolean);
+  $("#foot-contact").innerHTML = parts.length ? "<b>" + t("contact_label") + "</b> · " + parts.join(" · ") + "<br>" : "";
 }
 function setLang(l){
   LANG = l === "en" ? "en" : "ko";
@@ -805,6 +852,7 @@ function setLang(l){
   applyLang();
   if (DATA){ render(); setTblView(tblView); setStatus(); }
   renderNews();
+  renderMofa();
 }
 const shortDate = iso => iso ? iso.slice(5).replace(/^0/, "").replace("-0", "/").replace("-", "/") : "";
 /* 한글 조사 자동 선택 — 마지막 글자 받침 유무로 이/가, 은/는, 을/를 결정 */
@@ -2184,6 +2232,43 @@ function detail(name){
 
 
 
+/* ───────── 외교부 여행경보 · 대사관 안전공지 (서버 함수 경유 — 인증키 보호) ───────── */
+/* 이 시스템에서 유일한 "공식 판단" 자료다. 기상·재난 축은 모델값이지만 여행경보 단계와
+   대사관 공지는 정부가 내린 판단이라, 지도 위쪽에 따로 둔다. 30분마다 갱신(서버도 30분 캐시). */
+let MOFA = null;
+async function loadMofa(){
+  try {
+    const r = await fetch("/api/mofa");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    MOFA = await r.json();
+  } catch (e) {
+    MOFA = MOFA || {error: e.message};
+  }
+  renderMofa();
+  renderContact();
+}
+function renderMofa(){
+  const p = $("#mofapanel");
+  if (!MOFA) return;
+  if (!MOFA.alarm && !MOFA.notices){ p.hidden = false; $("#mofaNote").textContent = t("mofa_fail"); $("#mofaAlarm").innerHTML = ""; $("#mofaNotices").innerHTML = ""; return; }
+  p.hidden = false;
+  const nts = MOFA.notices || [];
+  $("#mofaNote").textContent = t("mofa_note", nts.length) + (MOFA.checkedAt ? ` · ${MOFA.checkedAt.slice(0,10)}` : "");
+  const a = MOFA.alarm;
+  $("#mofaAlarm").innerHTML = (a && a.levels.length ? a.levels.map(l =>
+      `<div class="tl tl${l.lvl}"><b>${hesc(t("mofa_lvl", l))}</b><span>${hesc(l.remark || (l.region === "전체" ? t("mofa_all") : l.region))}</span></div>`).join("")
+    : `<div class="empty">${t("mofa_fail")}</div>`)
+    + `<div class="src">${t("mofa_src")} · <a href="https://www.0404.go.kr/ntnSafetyInfo/list" target="_blank" rel="noopener noreferrer">0404.go.kr</a></div>`;
+  $("#mofaNotices").innerHTML = nts.length ? nts.map((x, i) => `
+    <div class="nt" data-i="${i}">
+      <div class="nth"><span class="ntd">${hesc(x.date)}</span><span class="ntt">${hesc(x.title)}</span>
+        ${x.category ? `<span class="ntc">${hesc(x.category)}</span>` : ""}</div>
+      <div class="ntx">${hesc(x.text) || t("mofa_notext")}</div>
+    </div>`).join("") + `<div class="src" style="padding:0 2px">${t("mofa_more")}</div>`
+    : `<div class="empty">${t("mofa_empty")}</div>`;
+  $("#mofaNotices").querySelectorAll(".nth").forEach(h => h.onclick = () => h.parentElement.classList.toggle("open"));
+}
+
 /* ───────── 안전 관련 뉴스 (서버 함수 경유 — RSS는 브라우저 CORS로 직접 못 읽음) ───────── */
 let NEWS = null;   // 마지막 /api/news 응답(언어 전환 시 재요청 없이 다시 그리기 위해)
 async function loadNews(){
@@ -2290,6 +2375,8 @@ load();
 setInterval(load, 15 * 60 * 1000);   // 15분 자동 갱신
 loadNews();
 setInterval(loadNews, 15 * 60 * 1000);   // 서버가 10분 캐시하므로 이 주기면 충분
+loadMofa();
+setInterval(loadMofa, 30 * 60 * 1000);   // 여행경보·공지는 하루 몇 번 바뀌는 자료가 아니다
 </script>
 </body>
 </html>
