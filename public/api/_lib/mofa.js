@@ -92,7 +92,8 @@ async function fetchMofa({ key, timeoutMs = 10000, notices = 8 } = {}) {
     ? nItems.map((it) => ({
         // 제목에도 &middot; 같은 HTML 엔티티가 섞여 온다(실제 사례: "집회&middot;시위") → 평문화
         id: String(it.sfty_notice_id || ""), date: String(it.wrt_dt || "").slice(0, 10), title: plainText(it.title, 200),
-        level: it.sfty_notice_lv || null, category: it.ctgy_nm || null, text: plainText(it.txt_origin_cn, 1200),
+        // 본문은 모달에서 전문을 보여주므로 넉넉히(공지 한 건이 보통 1~3천 자)
+        level: it.sfty_notice_lv || null, category: it.ctgy_nm || null, text: plainText(it.txt_origin_cn, 6000),
       })).sort((a, b) => b.date.localeCompare(a.date))
     : null;
   const e = eItems && eItems[0];

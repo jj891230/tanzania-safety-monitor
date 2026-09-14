@@ -320,9 +320,11 @@ tbody tr:hover{background:var(--line2)}
 .nt .ntd{font-size:10.5px;color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums}
 .nt .ntt{font-size:12px;font-weight:600;flex:1}
 .nt .ntc{font-size:10px;color:var(--ink3);white-space:nowrap}
-.nt .ntx{display:none;margin-top:6px;font-size:11.5px;line-height:1.55;color:var(--ink2);white-space:pre-line;
-  border-top:1px solid var(--line2);padding-top:6px}
-.nt.open .ntx{display:block}
+/* 공지 본문 모달 — 본문은 14px·행간 1.8, 문단 간격으로 읽기 쉽게. 카드 폭은 지역 상세보다 좁게 */
+.mcard.notice{max-width:680px}
+.mbody.ntext{font-size:14px;line-height:1.8;color:var(--ink)}
+.mbody.ntext p{margin:0 0 12px}
+.mbody.ntext p:last-of-type{margin-bottom:0}
 
 /* ── 한 줄 브리핑 ── */
 .brief{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--panel);
@@ -618,7 +620,7 @@ ko: {
   mofa:"외교부 여행경보 · 대사관 안전공지", mofa_note:(d) => `외교부 해외안전여행(0404.go.kr) · 공지 ${d}건`,
   mofa_lvl:(l) => `${l.lvl}단계 ${l.ko}`, mofa_all:"전 지역", mofa_src:"자료: 외교부 여행경보제도 · 주탄자니아대사관 안전공지 (30분 갱신)",
   mofa_notices:"대사관 안전공지", mofa_empty:"최근 안전공지 없음", mofa_fail:"외교부 자료 불러오기 실패",
-  mofa_more:"제목을 누르면 본문", mofa_notext:"본문이 이미지·첨부로만 제공됩니다 — 0404.go.kr에서 확인", emb_line:(e) => `주탄자니아대한민국대사관 ${e.tel}` + (e.urgency ? ` · 영사콜센터(24시간) ${e.urgency}` : ""),
+  mofa_more:"제목을 누르면 본문이 새 창(모달)으로 열립니다", mofa_notext:"본문이 이미지·첨부로만 제공됩니다 — 0404.go.kr에서 확인", emb_line:(e) => `주탄자니아대한민국대사관 ${e.tel}` + (e.urgency ? ` · 영사콜센터(24시간) ${e.urgency}` : ""),
   // 지도
   maplegend:(n, pub, wil) => `행정경계 ${units(n)} · <b style="color:var(--accent)">파란 테두리 = `
     + (pub ? "KOICA 사업 소재지" : "파견인력 배치") + (wil ? "(주 단위 · 해당 주 전체 표시)" : "")
@@ -748,7 +750,7 @@ en: {
   mofa:"MOFA travel advisory · Embassy safety notices", mofa_note:(d) => `Korean MOFA (0404.go.kr) · ${d} notices`,
   mofa_lvl:(l) => `Level ${l.lvl} · ${l.en}`, mofa_all:"whole country", mofa_src:"Source: Korean MOFA travel advisory · Embassy of Korea in Tanzania notices (refreshed every 30 min). Notices are in Korean.",
   mofa_notices:"Embassy safety notices", mofa_empty:"No recent notices", mofa_fail:"MOFA data unavailable",
-  mofa_more:"click a title to expand", mofa_notext:"Body available only as image/attachment — see 0404.go.kr", emb_line:(e) => `Embassy of Korea in Tanzania ${e.tel}` + (e.urgency ? ` · Consular call centre (24h) ${e.urgency}` : ""),
+  mofa_more:"click a title to open the full notice", mofa_notext:"Body available only as image/attachment — see 0404.go.kr", emb_line:(e) => `Embassy of Korea in Tanzania ${e.tel}` + (e.urgency ? ` · Consular call centre (24h) ${e.urgency}` : ""),
   maplegend:(n, pub, wil) => `${units(n)} · <b style="color:var(--accent)">blue outline = `
     + (pub ? "KOICA project location" : "field staff deployed") + (wil ? " (region-level · whole region shown)" : "")
     + `</b> · ◆ river anomaly · click a ${UNIT()} for details`,
@@ -2284,10 +2286,41 @@ function renderMofa(){
     <div class="nt" data-i="${i}">
       <div class="nth"><span class="ntd">${hesc(x.date)}</span><span class="ntt">${hesc(x.title)}</span>
         ${x.category ? `<span class="ntc">${hesc(x.category)}</span>` : ""}</div>
-      <div class="ntx">${hesc(x.text) || t("mofa_notext")}</div>
     </div>`).join("") + `<div class="src" style="padding:0 2px">${t("mofa_more")}</div>`
     : `<div class="empty">${t("mofa_empty")}</div>`;
-  $("#mofaNotices").querySelectorAll(".nth").forEach(h => h.onclick = () => h.parentElement.classList.toggle("open"));
+  $("#mofaNotices").querySelectorAll(".nth").forEach(h => h.onclick = () => noticeModal(+h.parentElement.dataset.i));
+}
+/* 공지 본문은 좁은 열 안에 인라인으로 펼치면 작은 글씨로 스크롤되어 읽기 어렵다(사용자 지적).
+   지역 상세와 같은 넓은 모달에 큰 글씨·문단 간격으로 띄운다. 본문의 줄바꿈을 문단으로 살린다. */
+function noticeModal(i){
+  const x = MOFA && MOFA.notices && MOFA.notices[i];
+  if (!x) return;
+  if (rainTimer){ clearInterval(rainTimer); rainTimer = null; }
+  const paras = String(x.text || "").split(/\n+/).map(s => s.trim()).filter(Boolean);
+  const body = paras.length
+    ? paras.map(s => `<p>${hesc(s)}</p>`).join("")
+    : `<p class="note2">${t("mofa_notext")}</p>`;
+  $("#modal").innerHTML = `
+  <div class="mask" id="mask">
+    <div class="mcard notice" role="dialog" aria-modal="true" aria-label="${hesc(x.title)}">
+      <div class="mhead">
+        <div>
+          <div class="meta" style="margin:0 0 4px">${hesc(x.date)}${x.category ? ` · ${hesc(x.category)}` : ""} · ${t("mofa_notices")}</div>
+          <h3 style="font-size:16px;line-height:1.35">${hesc(x.title)}</h3>
+        </div>
+        <button class="mx" id="mclose" aria-label="${t("m_close")}">×</button>
+      </div>
+      <div class="mbody ntext">${body}
+        <div class="note2" style="margin-top:14px">${t("mofa_src")} · <a href="https://www.0404.go.kr/ntnSafetyInfo/list" target="_blank" rel="noopener noreferrer">0404.go.kr</a></div>
+      </div>
+    </div>
+  </div>`;
+  const close = () => { $("#modal").innerHTML = ""; document.removeEventListener("keydown", esc); };
+  const esc = e => { if (e.key === "Escape") close(); };
+  $("#mclose").onclick = close;
+  $("#mask").onclick = e => { if (e.target.id === "mask") close(); };
+  document.addEventListener("keydown", esc);
+  $("#mclose").focus();
 }
 
 /* ───────── 안전 관련 뉴스 (서버 함수 경유 — RSS는 브라우저 CORS로 직접 못 읽음) ───────── */
