@@ -350,6 +350,30 @@ tbody tr:hover{background:var(--line2)}
 .mbody.ntext{font-size:14px;line-height:1.8;color:var(--ink)}
 .mbody.ntext p{margin:0 0 12px}
 .mbody.ntext p:last-of-type{margin-bottom:0}
+/* ── 탭 ── 폰에서는 탭 줄이 화면 위에 붙어 있고 옆으로 밀어 넘긴다 */
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:5;
+  background:var(--bg);border-bottom:2px solid var(--line);margin:4px 0 12px}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:none;border:none;border-radius:0;background:none;padding:11px 15px 9px;font-size:13.5px;font-weight:700;
+  color:var(--ink2);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.tabs button:hover{color:var(--accent)}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tabhint{font-size:11.5px;color:var(--ink3);text-align:center;padding:2px 0 18px}
+.pane .grid2{margin-bottom:12px}
+@media(max-width:600px){.tabs{margin-left:-14px;margin-right:-14px;padding:0 8px}.tabs button{padding:11px 11px 9px;font-size:13px}}
+/* ── 첫 화면 여행경보 한 줄 ── */
+.mofastrip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;background:var(--panel);border:1px solid var(--line);
+  border-left:4px solid var(--accent);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px}
+.mofastrip>b{color:var(--ink)}
+.tlb{padding:1px 8px;border-radius:9px;font-weight:700;font-size:11px;background:var(--bg);border:1px solid var(--line)}
+.tlb.tl1{color:#2e5c8a;border-color:#2e5c8a} .tlb.tl2{color:var(--l2);border-color:var(--l2)}
+.tlb.tl3{color:var(--l4);border-color:var(--l4)} .tlb.tl4{color:var(--ink);border-color:var(--ink)}
+.strip_nt{color:var(--ink2);flex:1 1 220px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.strip_nt:hover{color:var(--accent)}
+.strip_more{color:var(--accent);font-weight:700;text-decoration:none;white-space:nowrap;margin-left:auto}
+.mailpane p{margin:0 0 8px;font-size:13px}
+.mailpane ul{margin:0 0 14px;padding-left:18px;font-size:12.5px;color:var(--ink2);line-height:1.8}
+.mailpane .note2{margin-top:10px}
 /* ── 경보 메일 신청 창 ── */
 .subbtn{border-color:var(--accent);color:var(--accent);font-weight:700}
 .mcard.sub{max-width:640px}
@@ -481,7 +505,6 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   </div>
   <div class="hspace"></div>
   <div class="status"><span class="dot load" id="dot"></span><span id="stat">불러오는 중…</span></div>
-  <button id="subBtn" class="subbtn" data-t="sub_btn" hidden>경보 메일</button>
   <button id="reload" data-t="reload">새로고침</button>
   <button id="theme">야간</button>
   <button id="lang" title="English / 한국어">EN</button>
@@ -489,6 +512,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 
 <div class="banner" id="banner"></div>
 <div class="brief" id="brief"></div>
+<div class="mofastrip" id="mofastrip" hidden></div>
 <div class="kpis" id="kpis"></div>
 
 <div class="panel" id="mappanel">
@@ -509,7 +533,19 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   </div>
 </div>
 
-<div class="grid2">
+<!-- 첫 화면은 브리핑·KPI·위험지도까지. 나머지는 아래 탭을 눌렀을 때만 펼친다(사용자 요청 2026-09-25 —
+     폰에서 한 화면에 모든 패널이 이어져 길고 복잡했다). 패널 자체와 id는 그대로 두고 탭 칸으로만 옮겼으므로
+     그리는 코드(render·renderMofa 등)는 손대지 않았다. 탭 선택은 주소 #해시로 남아 링크로 공유할 수 있다. -->
+<nav class="tabs" id="tabs" role="tablist">
+  <button role="tab" data-tab="detail" data-t="tab_detail">지역별 상세</button>
+  <button role="tab" data-tab="hydro" data-t="tab_hydro">하천·지진</button>
+  <button role="tab" data-tab="events" data-t="tab_events">재난·뉴스</button>
+  <button role="tab" data-tab="mofa" data-t="tab_mofa">외교부·대사관</button>
+  <button role="tab" data-tab="mail" data-t="tab_mail" id="tabMail" hidden>경보 메일</button>
+</nav>
+<div class="tabhint" id="tabhint" data-t="tab_hint"></div>
+
+<section class="pane" data-pane="detail" role="tabpanel" hidden>
   <div class="panel" id="hmpanel">
     <div class="phead"><h2 data-t="hm">주별 상세</h2>
       <span class="note" id="tblnote"></span>
@@ -517,16 +553,10 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
     <div class="hm" id="hm"></div>
     <div class="scroll" id="tblbox" style="max-height:480px;display:none"><div class="swipehint" data-t="swipe"></div><table id="tbl"></table></div>
   </div>
-  <div class="panel">
-    <div class="phead"><h2 data-t="gdacs">GDACS 활성 재해</h2><span class="note" id="gcount"></span></div>
-    <div class="pbody"><div class="alist" style="max-height:280px" id="gdacs"></div></div>
-  </div>
-</div>
+</section>
 
-<!-- 아래 두 줄은 짝끼리 위·아래 테두리를 맞춘다(.eqrow = align-items:stretch). 예전엔 열마다
-     .stack으로 독립해 쌓아서 줄이 어긋났다(사용자 지적: 하천|지진, 뉴스|외교부 윗줄·아랫줄 맞추기).
-     패널을 세로 flex로 두고 목록(.fill > .alist)이 남는 높이를 채우므로, 한쪽이 길어져도
-     다른 쪽 패널이 같이 늘어나 테두리가 맞고 빈 공간은 목록 스크롤 영역이 흡수한다. -->
+<!-- 짝 패널의 위·아래 테두리를 맞추는 줄(.eqrow = align-items:stretch) — 예전 배치 그대로 -->
+<section class="pane" data-pane="hydro" role="tabpanel" hidden>
 <div class="grid2 eqrow">
   <div class="panel">
     <div class="phead"><h2 data-t="rivers">주요 하천 유량</h2>
@@ -542,22 +572,44 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
     <div class="pbody fill" style="padding-top:2px"><div class="alist" id="quakes"></div></div>
   </div>
 </div>
+</section>
 
+<section class="pane" data-pane="events" role="tabpanel" hidden>
 <div class="grid2 eqrow">
   <div class="panel">
     <div class="phead"><h2 data-t="news">탄자니아 안전 관련 뉴스</h2><span class="note" id="newsNote">allAfrica · 안전 키워드 필터링</span></div>
     <div class="pbody fill"><div class="alist" id="news"></div></div>
   </div>
+  <div class="panel">
+    <div class="phead"><h2 data-t="gdacs">GDACS 활성 재해</h2><span class="note" id="gcount"></span></div>
+    <div class="pbody fill"><div class="alist" id="gdacs"></div></div>
+  </div>
+</div>
+</section>
+
+<section class="pane" data-pane="mofa" role="tabpanel" hidden>
   <div class="panel" id="mofapanel" hidden>
     <div class="phead"><h2 data-t="mofa">외교부 여행경보 · 대사관 안전공지</h2>
       <span class="note" id="mofaNote"></span></div>
-    <div class="pbody mofa fill">
+    <div class="pbody mofa">
       <div id="mofaAlarm"></div>
       <div class="alist" id="mofaNotices"></div>
     </div>
   </div>
-</div>
+  <div class="panel" id="mofawait"><div class="empty" data-t="mofa_wait">외교부 자료를 불러오는 중…</div></div>
+</section>
 
+<section class="pane" data-pane="mail" role="tabpanel" hidden>
+  <div class="panel">
+    <div class="phead"><h2 data-t="sub_title">경보 메일 신청</h2></div>
+    <div class="pbody mailpane">
+      <p data-t="mail_p1"></p>
+      <ul><li data-t="mail_li1"></li><li data-t="mail_li2"></li><li data-t="mail_li3"></li></ul>
+      <button class="btnp" id="mailGo" data-t="sub_submit">신청하기</button>
+      <p class="note2" data-t="mail_manage"></p>
+    </div>
+  </div>
+</section>
 
 
 <div id="modal"></div>
@@ -716,6 +768,12 @@ ko: {
   hm_normal:(n) => `정상 ${units(n)}`,
   tblnote_heat:() => `임계 이상 ${UNIT()}만 표시 · 정상 지역은 접어둠 · ${UNIT()} 클릭 시 상세`,
   tblnote_tbl:"평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬",
+  tab_detail:"지역별 상세", tab_hydro:"하천·지진", tab_events:"재난·뉴스", tab_mofa:"외교부·대사관", tab_mail:"✉ 경보 메일",
+  tab_hint:"▲ 탭을 누르면 지역별 수치·하천·지진·뉴스·대사관 공지가 펼쳐집니다", mofa_wait:"외교부 자료를 불러오는 중…",
+  strip_alarm:"외교부 여행경보", strip_rest:"그 외 지역", strip_notice:"최신 대사관 공지", strip_more:"자세히 ›",
+  mail_p1:"고른 지역에 위험 등급이 <b>새로 생기거나 오르면</b> 이메일로 알려드립니다(한·영 병기). 사업수행기관 담당자·파견인력 누구나 신청할 수 있습니다.",
+  mail_li1:"받을 지역: 전국 / 주(Mkoa) 전체 / 개별 군(Wilaya)", mail_li2:"최소 등급: 주의 · 경계(권장) · 심각", mail_li3:"매일 07:00(EAT) 일일 요약은 선택",
+  mail_manage:"신청 후 모든 메일 하단의 링크로 지역 변경·수신 해지를 할 수 있습니다.",
   sub_btn:"✉ 경보 메일", sub_title:"경보 메일 신청", sub_title_m:"경보 메일 설정", sub_lead:"고른 지역에 위험 등급이 새로 생기거나 오르면 이메일로 알려드립니다(한·영 병기).",
   sub_loading:"불러오는 중…", sub_email:"이메일", sub_level:"받을 최소 등급",
   sub_lv2:"주의 이상", sub_lv3:"경계 이상", sub_lv4:"심각만",
@@ -862,6 +920,12 @@ en: {
   hm_normal:(n) => `Normal: ${units(n)}`,
   tblnote_heat:() => `Only ${UNIT()}s at or above thresholds · normal areas collapsed · click a ${UNIT()} for details`,
   tblnote_tbl:"Normal = ERA5 2006-2025 · click a header to sort",
+  tab_detail:"By area", tab_hydro:"Rivers · Quakes", tab_events:"Disasters · News", tab_mofa:"MOFA · Embassy", tab_mail:"✉ Alert email",
+  tab_hint:"▲ Tap a tab to open area figures, rivers, quakes, news and embassy notices", mofa_wait:"Loading MOFA data…",
+  strip_alarm:"MOFA travel advisory", strip_rest:"rest of the country", strip_notice:"Latest embassy notice", strip_more:"More ›",
+  mail_p1:"Get an email when a risk level <b>newly appears or rises</b> in the areas you choose (Korean + English). Open to all implementing partners and field staff.",
+  mail_li1:"Areas: all of Tanzania / whole regions (Mkoa) / individual districts (Wilaya)", mail_li2:"Minimum level: Moderate · High (recommended) · Severe", mail_li3:"Optional daily 07:00 (EAT) digest",
+  mail_manage:"Every email has links to change your areas or unsubscribe.",
   sub_btn:"✉ Alert email", sub_title:"Subscribe to alert emails", sub_title_m:"Alert email settings", sub_lead:"Get an email when a risk level newly appears or rises in the areas you choose (Korean + English).",
   sub_loading:"Loading…", sub_email:"Email", sub_level:"Minimum level",
   sub_lv2:"Moderate+", sub_lv3:"High+", sub_lv4:"Severe only",
@@ -2380,6 +2444,8 @@ function remarkText(l){
 function renderMofa(){
   const p = $("#mofapanel");
   if (!MOFA) return;
+  $("#mofawait").hidden = true;
+  renderMofaStrip();
   if (!MOFA.alarm && !MOFA.notices){ p.hidden = false; $("#mofaNote").textContent = t("mofa_fail"); $("#mofaAlarm").innerHTML = ""; $("#mofaNotices").innerHTML = ""; return; }
   p.hidden = false;
   const nts = MOFA.notices || [];
@@ -2396,6 +2462,23 @@ function renderMofa(){
     </div>`).join("") + `<div class="src" style="padding:0 2px">${t("mofa_more")}</div>`
     : `<div class="empty">${t("mofa_empty")}</div>`;
   $("#mofaNotices").querySelectorAll(".nth").forEach(h => h.onclick = () => noticeModal(+h.parentElement.dataset.i));
+}
+/* 첫 화면 한 줄 — 여행경보는 이 시스템에서 유일한 "정부의 공식 판단"이라 탭 안에만 두지 않고
+   브리핑 아래에 단계와 최신 공지 제목만 보여 준다. 「자세히」는 외교부·대사관 탭을 연다. */
+function renderMofaStrip(){
+  const el = $("#mofastrip"), a = MOFA && MOFA.alarm;
+  if (!a || !a.levels || !a.levels.length){ el.hidden = true; return; }
+  const n = (MOFA.notices || [])[0];
+  el.hidden = false;
+  el.innerHTML = `<b>${t("strip_alarm")}</b>`
+    /* 단계 이름만 두면 "3단계 출국권고"가 전국처럼 읽힌다 — 지역을 꼭 붙인다. 긴 "3단계 지정 지역을 제외한
+       지역"만 "그 외 지역"으로 줄이고(원문은 외교부·대사관 탭에 그대로), 나머지는 외교부 비고 그대로. */
+    + a.levels.map(l => { const r = remarkText(l), rs = /제외한 지역|except|other than/i.test(r) ? t("strip_rest") : r;
+        return `<span class="tlb tl${l.lvl}">${hesc(t("mofa_lvl", l))}${rs ? " · " + hesc(rs) : ""}</span>`; }).join("")
+    + (n ? `<span class="strip_nt" data-i="0">${t("strip_notice")} ${hesc(shortDate(n.date))} · ${hesc(n.title)}</span>` : "")
+    + `<a href="#mofa" class="strip_more">${t("strip_more")}</a>`;
+  const nt = el.querySelector(".strip_nt");
+  if (nt) nt.onclick = () => noticeModal(0);
 }
 /* 공지 본문은 좁은 열 안에 인라인으로 펼치면 작은 글씨로 스크롤되어 읽기 어렵다(사용자 지적).
    지역 상세와 같은 넓은 모달에 큰 글씨·문단 간격으로 띄운다. 본문의 줄바꿈을 문단으로 살린다. */
@@ -2696,6 +2779,29 @@ $("#theme").onclick = () => {
 };
 if (ls("tzTheme","light") === "dark") $("#theme").click();
 $("#lang").onclick = () => setLang(EN() ? "ko" : "en");
+
+/* ───────── 탭 — 첫 화면(브리핑·KPI·지도) 아래 내용을 탭으로 나눈다 ─────────
+   처음엔 아무 탭도 열지 않는다(첫 화면은 대시보드·지도만). 누르면 펼치고, 같은 탭을 다시 누르면 접는다.
+   선택은 주소 #해시(#detail 등)로 남겨 링크로 공유하면 그 탭이 열린 채로 보인다.
+   탭 이름은 페이지의 어떤 요소 id와도 겹치지 않게 했다(겹치면 브라우저가 그 요소로 점프한다). */
+const TABS = ["detail", "hydro", "events", "mofa", "mail"];
+let curTab = null;
+function setTab(k, {scroll = true, push = true} = {}){
+  if (!TABS.includes(k) || (k === "mail" && $("#tabMail").hidden)) k = null;
+  curTab = k;
+  document.querySelectorAll("#tabs [data-tab]").forEach(b => {
+    const on = b.dataset.tab === k;
+    b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  document.querySelectorAll(".pane").forEach(p => { p.hidden = p.dataset.pane !== k; });
+  $("#tabhint").hidden = !!k;
+  if (push) history.replaceState(null, "", location.pathname + location.search + (k ? "#" + k : ""));
+  if (k && scroll) $("#tabs").scrollIntoView({behavior: "smooth", block: "start"});
+}
+document.querySelectorAll("#tabs [data-tab]").forEach(b => b.onclick = () => setTab(curTab === b.dataset.tab ? null : b.dataset.tab));
+window.addEventListener("hashchange", () => setTab(location.hash.slice(1), {push: false}));
+setTab(location.hash.slice(1), {scroll: false, push: false});
+if (curTab) setTimeout(() => $("#tabs").scrollIntoView({block: "start"}), 700);   // 공유 링크로 들어온 경우
 applyLang();
 load();
 setInterval(load, 15 * 60 * 1000);   // 15분 자동 갱신
@@ -2703,9 +2809,12 @@ loadNews();
 setInterval(loadNews, 15 * 60 * 1000);   // 서버가 10분 캐시하므로 이 주기면 충분
 loadMofa();
 setInterval(loadMofa, 30 * 60 * 1000);   // 여행경보·공지는 하루 몇 번 바뀌는 자료가 아니다
-$("#subBtn").onclick = () => subModal("new");
-/* 신청 버튼은 발송(Gmail)·저장소(Upstash)가 둘 다 설정된 뒤에만 보인다 — 설정 전 배포에서 방문자가 "준비 중" 버튼을 보지 않게 */
-fetch("/api/subscribe?action=status").then(r => r.json()).then(j => { SUB_READY = !!j.ready; $("#subBtn").hidden = !SUB_READY; }).catch(() => {});
+$("#mailGo").onclick = () => subModal("new");
+/* 「경보 메일」 탭은 발송(Gmail)·저장소(Upstash)가 둘 다 설정된 뒤에만 보인다 — 설정 전에 방문자가 "준비 중" 탭을 보지 않게 */
+fetch("/api/subscribe?action=status").then(r => r.json()).then(j => {
+  SUB_READY = !!j.ready; $("#tabMail").hidden = !SUB_READY;
+  if (SUB_READY && location.hash === "#mail") setTab("mail");
+}).catch(() => {});
 subFromUrl();
 </script>
 </body>
