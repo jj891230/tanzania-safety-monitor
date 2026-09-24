@@ -352,7 +352,7 @@ tbody tr:hover{background:var(--line2)}
 .mbody.ntext p:last-of-type{margin-bottom:0}
 /* ── 탭 ── 폰에서는 탭 줄이 화면 위에 붙어 있고 옆으로 밀어 넘긴다 */
 .tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:5;
-  background:var(--bg);border-bottom:2px solid var(--line);margin:4px 0 12px}
+  background:var(--bg);border-bottom:2px solid var(--line);margin:-6px 0 12px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs button{flex:none;border:none;border-radius:0;background:none;padding:11px 15px 9px;font-size:13.5px;font-weight:700;
   color:var(--ink2);border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap}
@@ -510,6 +510,20 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   <button id="lang" title="English / 한국어">EN</button>
 </header>
 
+<!-- 탭 = 페이지. 대시보드(브리핑·KPI·위험지도)가 기본이고, 다른 탭을 누르면 그 내용만 보인다(사용자 요청
+     2026-09-25 — 폰에서 모든 패널이 한 화면에 이어져 길고 복잡했다. 처음엔 대시보드 아래로 접었다 펴는
+     방식이었는데 "탭을 누르면 해당 페이지로 이동, 대시보드로 다시 돌아갈 수 있게"로 바꿨다). 패널과 id는
+     그대로 옮기기만 해서 그리는 코드는 손대지 않았다. 탭은 주소 #해시로 남아 링크 공유·뒤로가기가 된다. -->
+<nav class="tabs" id="tabs" role="tablist">
+  <button role="tab" data-tab="dash" data-t="tab_dash">대시보드</button>
+  <button role="tab" data-tab="detail" data-t="tab_detail">지역별 상세</button>
+  <button role="tab" data-tab="hydro" data-t="tab_hydro">하천·지진</button>
+  <button role="tab" data-tab="events" data-t="tab_events">재난·뉴스</button>
+  <button role="tab" data-tab="mofa" data-t="tab_mofa">외교부·대사관</button>
+  <button role="tab" data-tab="mail" data-t="tab_mail" id="tabMail" hidden>경보 메일</button>
+</nav>
+
+<section class="pane" data-pane="dash" role="tabpanel">
 <div class="banner" id="banner"></div>
 <div class="brief" id="brief"></div>
 <div class="mofastrip" id="mofastrip" hidden></div>
@@ -532,18 +546,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
     <div class="mapticker" id="mapticker" hidden></div>
   </div>
 </div>
-
-<!-- 첫 화면은 브리핑·KPI·위험지도까지. 나머지는 아래 탭을 눌렀을 때만 펼친다(사용자 요청 2026-09-25 —
-     폰에서 한 화면에 모든 패널이 이어져 길고 복잡했다). 패널 자체와 id는 그대로 두고 탭 칸으로만 옮겼으므로
-     그리는 코드(render·renderMofa 등)는 손대지 않았다. 탭 선택은 주소 #해시로 남아 링크로 공유할 수 있다. -->
-<nav class="tabs" id="tabs" role="tablist">
-  <button role="tab" data-tab="detail" data-t="tab_detail">지역별 상세</button>
-  <button role="tab" data-tab="hydro" data-t="tab_hydro">하천·지진</button>
-  <button role="tab" data-tab="events" data-t="tab_events">재난·뉴스</button>
-  <button role="tab" data-tab="mofa" data-t="tab_mofa">외교부·대사관</button>
-  <button role="tab" data-tab="mail" data-t="tab_mail" id="tabMail" hidden>경보 메일</button>
-</nav>
-<div class="tabhint" id="tabhint" data-t="tab_hint"></div>
+</section>
 
 <section class="pane" data-pane="detail" role="tabpanel" hidden>
   <div class="panel" id="hmpanel">
@@ -768,7 +771,7 @@ ko: {
   hm_normal:(n) => `정상 ${units(n)}`,
   tblnote_heat:() => `임계 이상 ${UNIT()}만 표시 · 정상 지역은 접어둠 · ${UNIT()} 클릭 시 상세`,
   tblnote_tbl:"평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬",
-  tab_detail:"지역별 상세", tab_hydro:"하천·지진", tab_events:"재난·뉴스", tab_mofa:"외교부·대사관", tab_mail:"✉ 경보 메일",
+  tab_dash:"대시보드", tab_detail:"지역별 상세", tab_hydro:"하천·지진", tab_events:"재난·뉴스", tab_mofa:"외교부·대사관", tab_mail:"✉ 경보 메일",
   tab_hint:"▲ 탭을 누르면 지역별 수치·하천·지진·뉴스·대사관 공지가 펼쳐집니다", mofa_wait:"외교부 자료를 불러오는 중…",
   strip_alarm:"외교부 여행경보", strip_rest:"그 외 지역", strip_notice:"최신 대사관 공지", strip_more:"자세히 ›",
   mail_p1:"고른 지역에 위험 등급이 <b>새로 생기거나 오르면</b> 이메일로 알려드립니다(한·영 병기). 사업수행기관 담당자·파견인력 누구나 신청할 수 있습니다.",
@@ -920,7 +923,7 @@ en: {
   hm_normal:(n) => `Normal: ${units(n)}`,
   tblnote_heat:() => `Only ${UNIT()}s at or above thresholds · normal areas collapsed · click a ${UNIT()} for details`,
   tblnote_tbl:"Normal = ERA5 2006-2025 · click a header to sort",
-  tab_detail:"By area", tab_hydro:"Rivers · Quakes", tab_events:"Disasters · News", tab_mofa:"MOFA · Embassy", tab_mail:"✉ Alert email",
+  tab_dash:"Dashboard", tab_detail:"By area", tab_hydro:"Rivers · Quakes", tab_events:"Disasters · News", tab_mofa:"MOFA · Embassy", tab_mail:"✉ Alert email",
   tab_hint:"▲ Tap a tab to open area figures, rivers, quakes, news and embassy notices", mofa_wait:"Loading MOFA data…",
   strip_alarm:"MOFA travel advisory", strip_rest:"rest of the country", strip_notice:"Latest embassy notice", strip_more:"More ›",
   mail_p1:"Get an email when a risk level <b>newly appears or rises</b> in the areas you choose (Korean + English). Open to all implementing partners and field staff.",
@@ -2780,28 +2783,35 @@ $("#theme").onclick = () => {
 if (ls("tzTheme","light") === "dark") $("#theme").click();
 $("#lang").onclick = () => setLang(EN() ? "ko" : "en");
 
-/* ───────── 탭 — 첫 화면(브리핑·KPI·지도) 아래 내용을 탭으로 나눈다 ─────────
-   처음엔 아무 탭도 열지 않는다(첫 화면은 대시보드·지도만). 누르면 펼치고, 같은 탭을 다시 누르면 접는다.
-   선택은 주소 #해시(#detail 등)로 남겨 링크로 공유하면 그 탭이 열린 채로 보인다.
+/* ───────── 탭 = 페이지 ─────────
+   기본은 대시보드. 탭을 누르면 그 페이지만 보이고 맨 위로 올라간다. 주소 #해시(#detail 등)를 쌓아서
+   폰의 뒤로가기로 이전 탭(결국 대시보드)으로 돌아갈 수 있고, 링크를 공유하면 그 탭이 열린 채로 보인다.
    탭 이름은 페이지의 어떤 요소 id와도 겹치지 않게 했다(겹치면 브라우저가 그 요소로 점프한다). */
-const TABS = ["detail", "hydro", "events", "mofa", "mail"];
+const TABS = ["dash", "detail", "hydro", "events", "mofa", "mail"];
 let curTab = null;
-function setTab(k, {scroll = true, push = true} = {}){
-  if (!TABS.includes(k) || (k === "mail" && $("#tabMail").hidden)) k = null;
+function setTab(k, {scroll = true} = {}){
+  if (!TABS.includes(k) || (k === "mail" && $("#tabMail").hidden)) k = "dash";
+  const changed = curTab !== k;
   curTab = k;
   document.querySelectorAll("#tabs [data-tab]").forEach(b => {
     const on = b.dataset.tab === k;
     b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false");
   });
   document.querySelectorAll(".pane").forEach(p => { p.hidden = p.dataset.pane !== k; });
-  $("#tabhint").hidden = !!k;
-  if (push) history.replaceState(null, "", location.pathname + location.search + (k ? "#" + k : ""));
-  if (k && scroll) $("#tabs").scrollIntoView({behavior: "smooth", block: "start"});
+  /* 폰에서 탭 줄 끝쪽(외교부·경보 메일)을 골랐을 때 그 탭이 가려지지 않게 */
+  const on = $("#tabs .on"); if (on) on.scrollIntoView({block: "nearest", inline: "nearest"});
+  if (changed && scroll) window.scrollTo(0, 0);
 }
-document.querySelectorAll("#tabs [data-tab]").forEach(b => b.onclick = () => setTab(curTab === b.dataset.tab ? null : b.dataset.tab));
-window.addEventListener("hashchange", () => setTab(location.hash.slice(1), {push: false}));
-setTab(location.hash.slice(1), {scroll: false, push: false});
-if (curTab) setTimeout(() => $("#tabs").scrollIntoView({block: "start"}), 700);   // 공유 링크로 들어온 경우
+const hashTab = () => location.hash.slice(1) || "dash";
+document.querySelectorAll("#tabs [data-tab]").forEach(b => b.onclick = () => {
+  const k = b.dataset.tab;
+  if (k === curTab) { window.scrollTo({top: 0, behavior: "smooth"}); return; }   // 같은 탭 = 맨 위로
+  history.pushState(null, "", location.pathname + location.search + (k === "dash" ? "" : "#" + k));
+  setTab(k);
+});
+window.addEventListener("popstate", () => setTab(hashTab()));
+window.addEventListener("hashchange", () => setTab(hashTab()));   // 여행경보 줄의 「자세히」(#mofa) 링크
+setTab(hashTab(), {scroll: false});
 applyLang();
 load();
 setInterval(load, 15 * 60 * 1000);   // 15분 자동 갱신
@@ -2813,7 +2823,7 @@ $("#mailGo").onclick = () => subModal("new");
 /* 「경보 메일」 탭은 발송(Gmail)·저장소(Upstash)가 둘 다 설정된 뒤에만 보인다 — 설정 전에 방문자가 "준비 중" 탭을 보지 않게 */
 fetch("/api/subscribe?action=status").then(r => r.json()).then(j => {
   SUB_READY = !!j.ready; $("#tabMail").hidden = !SUB_READY;
-  if (SUB_READY && location.hash === "#mail") setTab("mail");
+  if (SUB_READY && location.hash === "#mail") setTab("mail", {scroll: false});
 }).catch(() => {});
 subFromUrl();
 </script>
