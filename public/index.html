@@ -350,6 +350,41 @@ tbody tr:hover{background:var(--line2)}
 .mbody.ntext{font-size:14px;line-height:1.8;color:var(--ink)}
 .mbody.ntext p{margin:0 0 12px}
 .mbody.ntext p:last-of-type{margin-bottom:0}
+/* ── 경보 메일 신청 창 ── */
+.subbtn{border-color:var(--accent);color:var(--accent);font-weight:700}
+.mcard.sub{max-width:640px}
+.sform .fl{display:block;font-size:11.5px;color:var(--ink2);font-weight:700;margin:14px 0 6px}
+.sform .fl:first-of-type{margin-top:4px}
+.sform input[type=email],.sform .dsearch{width:100%;padding:9px 11px;font:inherit;font-size:14px;border:1px solid var(--line);
+  border-radius:6px;background:var(--bg);color:var(--ink)}
+.sform .dsearch{font-size:12.5px;padding:7px 10px;margin-top:8px}
+.semail{font-size:14px;font-weight:700}
+.sseg{margin-left:0;display:inline-flex}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--line);border-radius:15px;
+  font-size:12px;cursor:pointer;user-select:none;background:var(--panel)}
+.chip input{margin:0;accent-color:var(--accent)}
+.chip.on{background:var(--accent2);border-color:var(--accent);color:var(--accent);font-weight:700}
+.chip.sm{font-size:11px;padding:3px 8px}
+.chip.dis{opacity:.5;cursor:default}
+.sdet{margin-top:10px}
+.sdet summary{cursor:pointer;font-size:12px;color:var(--accent);font-weight:700}
+.dlist{max-height:280px;overflow-y:auto;border:1px solid var(--line2);border-radius:6px;padding:2px 9px 9px;margin-top:6px}
+.dgrp{margin-top:8px}
+.dgrp>b{display:block;font-size:11px;color:var(--ink3);margin-bottom:4px}
+.chk2{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;margin-top:12px;line-height:1.5;cursor:pointer}
+.chk2 input{margin-top:3px;accent-color:var(--accent)}
+.smsg{margin-top:12px;padding:9px 11px;border-radius:6px;font-size:12.5px;line-height:1.6}
+.smsg:first-child{margin-top:0}
+.smsg.ok{background:var(--l1bg);color:var(--ink);border-left:4px solid var(--l1)}
+.smsg.err{background:var(--l4bg);color:var(--ink);border-left:4px solid var(--l4)}
+.smsg.info{background:var(--accent2);color:var(--ink);border-left:4px solid var(--accent)}
+.sact{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.btnp{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;padding:9px 18px}
+.btnp:hover{color:#fff;opacity:.9}
+.btnp:disabled{opacity:.45;cursor:not-allowed}
+.btnd{color:var(--l4);border-color:var(--l4)}
+@media(max-width:600px){.mask{padding:10px}.mcard{max-height:94vh}.mhead,.mbody{padding-left:14px;padding-right:14px}}
 
 /* ── 한 줄 브리핑 ── */
 .brief{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--panel);
@@ -446,6 +481,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   </div>
   <div class="hspace"></div>
   <div class="status"><span class="dot load" id="dot"></span><span id="stat">불러오는 중…</span></div>
+  <button id="subBtn" class="subbtn" data-t="sub_btn" hidden>경보 메일</button>
   <button id="reload" data-t="reload">새로고침</button>
   <button id="theme">야간</button>
   <button id="lang" title="English / 한국어">EN</button>
@@ -623,7 +659,7 @@ ko: {
   subtitle:(pub) => "KOICA 탄자니아사무소 · 전국 31개 주 · 6개 위험축 " + (pub ? "실시간 안전 현황" : "실시간 관제")
     + ' <span class="tag">시범</span>' + (pub ? ' <span class="tag" style="background:var(--l1bg);color:var(--l1)">사업수행기관 공개용</span>' : ""),
   contact_label:"현장 안전 문의",
-  pp_public:"이 페이지는 공개 기상·재난 데이터만 표시합니다. 파견인력 명부·연락처·안전확인 응답 등 개인정보는 <b>포함되어 있지 않으며</b>, 방문자 정보도 수집하지 않습니다.",
+  pp_public:"이 페이지는 공개 기상·재난 데이터만 표시합니다. 파견인력 명부·연락처·안전확인 응답 등 개인정보는 <b>포함되어 있지 않으며</b>, 방문자 정보도 수집하지 않습니다. 단, <b>경보 메일을 신청하면</b> 입력한 이메일 주소와 고른 지역만 발송 목적으로 보관하며 해지 즉시 삭제합니다.",
   pp_internal:"파견인력은 <b>배치 도시 단위</b>로만 관리하며 GPS 좌표·이동경로를 수집하지 않습니다. 안전확인 응답은 이 브라우저에만 저장(localStorage)되며 외부로 전송되지 않습니다. 아래 명부는 '26.2분기 사업현황 자료의 소속·인원 정보를 옮긴 <b>초기값 예시</b>로, 실제 운영 시 확정 명부로 교체해야 합니다.",
   footer:`<b>데이터 출처</b> ·
   기상 예보·과거 기후 Open-Meteo(ERA5 재분석, 15분 갱신) ·
@@ -680,6 +716,27 @@ ko: {
   hm_normal:(n) => `정상 ${units(n)}`,
   tblnote_heat:() => `임계 이상 ${UNIT()}만 표시 · 정상 지역은 접어둠 · ${UNIT()} 클릭 시 상세`,
   tblnote_tbl:"평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬",
+  sub_btn:"✉ 경보 메일", sub_title:"경보 메일 신청", sub_title_m:"경보 메일 설정", sub_lead:"고른 지역에 위험 등급이 새로 생기거나 오르면 이메일로 알려드립니다(한·영 병기).",
+  sub_loading:"불러오는 중…", sub_email:"이메일", sub_level:"받을 최소 등급",
+  sub_lv2:"주의 이상", sub_lv3:"경계 이상", sub_lv4:"심각만",
+  sub_level_note:"주의는 연안·잔지바르 폭염처럼 계절적으로 자주 뜹니다. 대부분은 '경계 이상'을 권합니다.",
+  sub_area:"받을 지역", sub_all:"전국 전체", sub_pick:"지역 고르기",
+  sub_pick_region:"주(Mkoa)를 고르면 그 주의 군이 모두 포함됩니다.", sub_pick_district:"군(Wilaya) 단위로 고르기",
+  sub_search:"군·주 이름 검색 (예: Meru, 아루샤)", sub_covered:"주 전체 선택됨",
+  sub_digest:"매일 07:00(EAT) 일일 요약도 받기 — 그날 주의 이상 전체", 
+  sub_agree:"이메일 주소와 고른 지역은 이 경보 발송에만 쓰이며, 해지하면 즉시 삭제됩니다. 이에 동의합니다.",
+  sub_submit:"신청하기", sub_save:"변경 저장", sub_unsub:"수신 해지",
+  sub_sent:(e) => `<b>${e}</b>로 확인 메일을 보냈습니다. 메일의 <b>신청 확인하기</b>를 눌러야 신청이 완료됩니다(48시간 유효). 메일이 안 보이면 스팸함을 확인해 주세요.`,
+  sub_confirm_q:"경보 메일 신청을 확정할까요?", sub_confirm_btn:"신청 확정",
+  sub_confirmed:"신청이 완료되었습니다. 아래에서 언제든 지역·등급을 바꾸거나 해지할 수 있습니다(모든 경보 메일 하단에도 링크가 있습니다).",
+  sub_saved:"저장했습니다.", sub_unsubbed:"해지했습니다. 이메일 주소는 삭제되었고 더 이상 메일이 가지 않습니다.",
+  sub_unsub_hint:"아래 <b>수신 해지</b>를 누르면 즉시 해지됩니다.",
+  sub_notready:"메일 발송 설정을 마무리하는 중입니다 — 곧 신청을 받습니다.",
+  sub_err_email:"이메일 주소를 확인해 주세요.", sub_err_noarea:"지역을 하나 이상 고르거나 '전국 전체'를 선택해 주세요.",
+  sub_err_agree:"개인정보 이용에 동의해 주세요.", sub_err_rate:"신청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.",
+  sub_err_not_ready:"아직 신청을 받을 준비가 되지 않았습니다.", sub_err_mail:"확인 메일을 보내지 못했습니다. 주소를 확인하거나 잠시 후 다시 시도해 주세요.",
+  sub_err_expired:"링크가 만료되었습니다(48시간). 다시 신청해 주세요.", sub_err_notfound:"신청 정보를 찾을 수 없습니다(이미 해지되었을 수 있습니다).",
+  sub_err_token:"링크가 올바르지 않습니다.", sub_err_other:(m) => `처리 중 오류가 났습니다 (${m}).`,
   swipe:"← 표를 옆으로 밀면 나머지 열이 보입니다 · 이름 열은 고정",
   why_rain:(r, pk, td) => `최대 ${r.rain.maxD.toFixed(0)}mm` + (pk ? ` (${shortDate(pk)})` : "") + ` · 오늘 ${td.toFixed(0)}mm · 7일 누적 ${r.rain.acc7.toFixed(0)}mm`,
   why_ratio:(r) => ` = ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 ${(r.rain.ratio*100).toFixed(0)}%` + (r.rain.by === "ratio" ? " ← 평년 대비가 등급을 결정" : ""),
@@ -755,7 +812,7 @@ en: {
   subtitle:(pub) => "KOICA Tanzania Office · 31 regions · 6 hazard axes · " + (pub ? "live safety status" : "live monitoring")
     + ' <span class="tag">pilot</span>' + (pub ? ' <span class="tag" style="background:var(--l1bg);color:var(--l1)">for implementing partners</span>' : ""),
   contact_label:"Field safety contact",
-  pp_public:"This page shows public weather and disaster data only. It contains <b>no personal data</b> (no staff roster, contacts or safe-check replies) and collects no visitor data.",
+  pp_public:"This page shows public weather and disaster data only. It contains <b>no personal data</b> (no staff roster, contacts or safe-check replies) and collects no visitor data. If you <b>subscribe to alert emails</b>, only your email address and chosen areas are kept, solely to send alerts, and are deleted when you unsubscribe.",
   pp_internal:"Field staff are tracked at <b>town level only</b>; no GPS or movement data is collected. Safe-check replies are stored in this browser only (localStorage) and never sent anywhere. The roster below is a <b>seed example</b> from the 2026 Q2 project status data and must be replaced with the confirmed roster in operation.",
   footer:`<b>Data sources</b> ·
   Weather forecast & climate: Open-Meteo (ERA5 reanalysis, refreshed every 15 min) ·
@@ -805,6 +862,27 @@ en: {
   hm_normal:(n) => `Normal: ${units(n)}`,
   tblnote_heat:() => `Only ${UNIT()}s at or above thresholds · normal areas collapsed · click a ${UNIT()} for details`,
   tblnote_tbl:"Normal = ERA5 2006-2025 · click a header to sort",
+  sub_btn:"✉ Alert email", sub_title:"Subscribe to alert emails", sub_title_m:"Alert email settings", sub_lead:"Get an email when a risk level newly appears or rises in the areas you choose (Korean + English).",
+  sub_loading:"Loading…", sub_email:"Email", sub_level:"Minimum level",
+  sub_lv2:"Moderate+", sub_lv3:"High+", sub_lv4:"Severe only",
+  sub_level_note:"Moderate is frequent and seasonal (e.g. coastal/Zanzibar heat). High+ is recommended for most people.",
+  sub_area:"Areas", sub_all:"All of Tanzania", sub_pick:"Choose areas",
+  sub_pick_region:"Choosing a region (Mkoa) includes all of its districts.", sub_pick_district:"Choose by district (Wilaya)",
+  sub_search:"Search district/region (e.g. Meru, Arusha)", sub_covered:"whole region selected",
+  sub_digest:"Also send the daily 07:00 (EAT) digest — all Moderate+ areas that day",
+  sub_agree:"My email address and chosen areas are used only to send these alerts and are deleted as soon as I unsubscribe. I agree.",
+  sub_submit:"Subscribe", sub_save:"Save changes", sub_unsub:"Unsubscribe",
+  sub_sent:(e) => `A confirmation email was sent to <b>${e}</b>. Click <b>Confirm</b> in it to finish (valid 48 hours). Check your spam folder if you don't see it.`,
+  sub_confirm_q:"Confirm your alert email subscription?", sub_confirm_btn:"Confirm",
+  sub_confirmed:"You're subscribed. You can change areas/level or unsubscribe here any time (every alert email has these links too).",
+  sub_saved:"Saved.", sub_unsubbed:"Unsubscribed. Your email address has been deleted and no more emails will be sent.",
+  sub_unsub_hint:"Press <b>Unsubscribe</b> below to unsubscribe immediately.",
+  sub_notready:"Email delivery is being set up — subscriptions will open shortly.",
+  sub_err_email:"Please check the email address.", sub_err_noarea:"Choose at least one area, or 'All of Tanzania'.",
+  sub_err_agree:"Please agree to the use of your email address.", sub_err_rate:"Too many requests. Please try again later.",
+  sub_err_not_ready:"Subscriptions are not open yet.", sub_err_mail:"Could not send the confirmation email. Check the address or try again later.",
+  sub_err_expired:"This link has expired (48 hours). Please subscribe again.", sub_err_notfound:"Subscription not found (it may already be cancelled).",
+  sub_err_token:"Invalid link.", sub_err_other:(m) => `Something went wrong (${m}).`,
   swipe:"← Swipe the table sideways for more columns · name column stays fixed",
   why_rain:(r, pk, td) => `max ${r.rain.maxD.toFixed(0)} mm` + (pk ? ` (${shortDate(pk)})` : "") + ` · today ${td.toFixed(0)} mm · 7-day total ${r.rain.acc7.toFixed(0)} mm`,
   why_ratio:(r) => ` = ${(r.rain.ratio*100).toFixed(0)}% of the ${MN_EN[MONTH]} normal (${r.rain.norm.toFixed(0)} mm)` + (r.rain.by === "ratio" ? " ← anomaly sets the level" : ""),
@@ -2352,6 +2430,171 @@ function noticeModal(i){
   $("#mclose").focus();
 }
 
+/* ───────── 경보 메일 신청 — /api/subscribe ─────────
+   세 가지 모드: new(신청) · confirm(메일 링크 ?confirm=) · manage(메일 링크 ?sub=, &unsub=1).
+   확인·해지를 링크 GET만으로 처리하지 않고 버튼을 한 번 누르게 한다 — 회사 메일 보안
+   스캐너가 링크를 미리 열어 보면서 사람 대신 확인·해지를 해 버리는 일을 막으려는 것.
+   지역은 "주 전체"(그 주의 군 전부 포함) 또는 개별 "군"을 고른다. 아무것도 안 고르면 전국. */
+const SUB_LV = [2, 3, 4];
+let SUB_READY = null;   // /api/subscribe?action=status 결과 캐시
+async function subApi(body){
+  const r = await fetch("/api/subscribe", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+  return j;
+}
+function subModal(mode = "new", token = "", opts = {}){
+  if (rainTimer){ clearInterval(rainTimer); rainTimer = null; }
+  const st = { regions: new Set(), districts: new Set(), minLevel: 3, digest: false, email: "", all: true };
+  const rname = n => EN() ? (REGION_EN[n] || n) : n;
+  const REG = REGIONS.map(r => r.name);
+  const byRegion = {};
+  DISTRICTS.forEach(d => (byRegion[d.zone] = byRegion[d.zone] || []).push(d.name));
+
+  $("#modal").innerHTML = `
+  <div class="mask" id="mask">
+    <div class="mcard sub" role="dialog" aria-modal="true" aria-label="${t(mode === "new" ? "sub_title" : "sub_title_m")}">
+      <div class="mhead">
+        <div><h3>${t(mode === "new" ? "sub_title" : "sub_title_m")}</h3><div class="meta">${t("sub_lead")}</div></div>
+        <button class="mx" id="mclose" aria-label="${t("m_close")}">×</button>
+      </div>
+      <div class="mbody sform" id="sform"><div class="note2">${t("sub_loading")}</div></div>
+    </div>
+  </div>`;
+  const close = () => { $("#modal").innerHTML = ""; document.removeEventListener("keydown", esc); };
+  const esc = e => { if (e.key === "Escape") close(); };
+  $("#mclose").onclick = close;
+  $("#mask").onclick = e => { if (e.target.id === "mask") close(); };
+  document.addEventListener("keydown", esc);
+  const box = $("#sform");
+  const msg = (kind, html) => { const m = $("#smsg"); if (m){ m.className = "smsg " + kind; m.innerHTML = html; m.hidden = false; } };
+  const errText = e => t("sub_err_" + e.message) !== "sub_err_" + e.message ? t("sub_err_" + e.message) : t("sub_err_other", e.message);
+
+  function load(sub){
+    st.email = sub.email || "";
+    st.regions = new Set(sub.regions || []);
+    st.districts = new Set(sub.districts || []);
+    st.minLevel = SUB_LV.includes(+sub.minLevel) ? +sub.minLevel : 3;
+    st.digest = !!sub.digest;
+    st.all = !st.regions.size && !st.districts.size;
+  }
+  function draw(){
+    const manage = mode === "manage";
+    const chips = REG.map(n => `<label class="chip${st.regions.has(n) ? " on" : ""}"><input type="checkbox" data-r="${hesc(n)}"${st.regions.has(n) ? " checked" : ""}>${hesc(rname(n))}</label>`).join("");
+    const dl = REG.filter(n => byRegion[n]).map(n => {
+      const cov = st.regions.has(n);
+      return `<div class="dgrp" data-g="${hesc(n)}"><b>${hesc(rname(n))}${cov ? " · " + t("sub_covered") : ""}</b><div class="chips">` +
+        byRegion[n].map(d => `<label class="chip sm${cov ? " dis" : ""}${!cov && st.districts.has(d) ? " on" : ""}"><input type="checkbox" data-d="${hesc(d)}"${cov || st.districts.has(d) ? " checked" : ""}${cov ? " disabled" : ""}>${hesc(d)}</label>`).join("") +
+        `</div></div>`;
+    }).join("");
+    const picked = st.regions.size + st.districts.size;
+    box.innerHTML = `
+      ${SUB_READY === false && !manage ? `<div class="smsg info">${t("sub_notready")}</div>` : ""}
+      ${opts.notice ? `<div class="smsg ${opts.notice[0]}">${opts.notice[1]}</div>` : ""}
+      <label class="fl" for="sfEmail">${t("sub_email")}</label>
+      ${manage ? `<div class="semail">${hesc(st.email)}</div>`
+               : `<input type="email" id="sfEmail" autocomplete="email" inputmode="email" placeholder="name@example.com" value="${hesc(st.email)}">`}
+      <label class="fl">${t("sub_level")}</label>
+      <span class="seg sseg">${SUB_LV.map(l => `<button type="button" data-lv="${l}" class="${st.minLevel === l ? "on" : ""}">${t("sub_lv" + l)}</button>`).join("")}</span>
+      <div class="note2">${t("sub_level_note")}</div>
+      <label class="fl">${t("sub_area")}</label>
+      <div class="chips">
+        <label class="chip${st.all ? " on" : ""}"><input type="radio" name="sfAll" value="1"${st.all ? " checked" : ""}>${t("sub_all")}</label>
+        <label class="chip${!st.all ? " on" : ""}"><input type="radio" name="sfAll" value="0"${!st.all ? " checked" : ""}>${t("sub_pick")}${picked ? ` (${picked})` : ""}</label>
+      </div>
+      <div id="sfPick"${st.all ? " hidden" : ""}>
+        <div class="note2" style="margin:8px 0 5px">${t("sub_pick_region")}</div>
+        <div class="chips">${chips}</div>
+        <details class="sdet"${st.districts.size ? " open" : ""}><summary>${t("sub_pick_district")}</summary>
+          <input type="search" class="dsearch" id="sfSearch" placeholder="${t("sub_search")}">
+          <div class="dlist">${dl}</div>
+        </details>
+      </div>
+      <label class="chk2"><input type="checkbox" id="sfDigest"${st.digest ? " checked" : ""}><span>${t("sub_digest")}</span></label>
+      ${manage ? "" : `<label class="chk2"><input type="checkbox" id="sfAgree"><span>${t("sub_agree")}</span></label>`}
+      <div class="smsg" id="smsg" hidden></div>
+      <div class="sact">
+        ${manage ? `<button class="btnp" id="sfSave">${t("sub_save")}</button><button id="sfUnsub" class="btnd">${t("sub_unsub")}</button>`
+                 : `<button class="btnp" id="sfGo"${SUB_READY === false ? " disabled" : ""}>${t("sub_submit")}</button>`}
+      </div>`;
+    const keepEmail = () => { const i = $("#sfEmail"); if (i) st.email = i.value; };
+    box.querySelectorAll(".sseg button").forEach(b => b.onclick = () => { keepEmail(); st.minLevel = +b.dataset.lv; draw(); });
+    box.querySelectorAll('input[name="sfAll"]').forEach(r => r.onchange = () => { keepEmail(); st.all = r.value === "1"; draw(); });
+    box.querySelectorAll("input[data-r]").forEach(c => c.onchange = () => {
+      keepEmail(); c.checked ? st.regions.add(c.dataset.r) : st.regions.delete(c.dataset.r);
+      // 주 전체를 고르면 그 주의 개별 군 선택은 의미가 없으니 정리
+      if (c.checked) (byRegion[c.dataset.r] || []).forEach(d => st.districts.delete(d));
+      draw();
+    });
+    box.querySelectorAll("input[data-d]").forEach(c => c.onchange = () => {
+      keepEmail(); c.checked ? st.districts.add(c.dataset.d) : st.districts.delete(c.dataset.d);
+      c.parentElement.classList.toggle("on", c.checked);
+    });
+    const sr = $("#sfSearch");
+    if (sr) sr.oninput = () => {
+      const q = sr.value.trim().toLowerCase();
+      box.querySelectorAll(".dgrp").forEach(g => {
+        let any = false;
+        g.querySelectorAll(".chip").forEach(ch => { const hit = !q || ch.textContent.toLowerCase().includes(q) || g.dataset.g.toLowerCase().includes(q) || rname(g.dataset.g).toLowerCase().includes(q); ch.hidden = !hit; any = any || hit; });
+        g.hidden = !any;
+      });
+    };
+    $("#sfDigest").onchange = e => { st.digest = e.target.checked; };
+    const payload = () => ({
+      regions: st.all ? [] : [...st.regions], districts: st.all ? [] : [...st.districts],
+      minLevel: st.minLevel, digest: st.digest, lang: LANG,
+    });
+    if ($("#sfGo")) $("#sfGo").onclick = async () => {
+      keepEmail();
+      if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(st.email.trim())) return msg("err", t("sub_err_email"));
+      if (!st.all && !st.regions.size && !st.districts.size) return msg("err", t("sub_err_noarea"));
+      if (!$("#sfAgree").checked) return msg("err", t("sub_err_agree"));
+      $("#sfGo").disabled = true;
+      try {
+        await subApi({action: "subscribe", email: st.email.trim(), ...payload()});
+        box.innerHTML = `<div class="smsg ok">${t("sub_sent", hesc(st.email.trim()))}</div>`;
+      } catch (e) { msg("err", errText(e)); $("#sfGo").disabled = false; }
+    };
+    if ($("#sfSave")) $("#sfSave").onclick = async () => {
+      if (!st.all && !st.regions.size && !st.districts.size) return msg("err", t("sub_err_noarea"));
+      try { const j = await subApi({action: "update", t: token, ...payload()}); load(j.sub); opts = {notice: ["ok", t("sub_saved")]}; draw(); }
+      catch (e) { msg("err", errText(e)); }
+    };
+    if ($("#sfUnsub")) $("#sfUnsub").onclick = async () => {
+      try { await subApi({action: "unsub", t: token}); box.innerHTML = `<div class="smsg ok">${t("sub_unsubbed")}</div>`; }
+      catch (e) { msg("err", errText(e)); }
+    };
+    if (opts.focusUnsub && $("#sfUnsub")) $("#sfUnsub").focus();
+  }
+
+  (async () => {
+    if (SUB_READY === null && mode === "new") {
+      try { SUB_READY = !!(await (await fetch("/api/subscribe?action=status")).json()).ready; } catch { SUB_READY = false; }
+    }
+    if (mode === "new") return draw();
+    if (mode === "confirm") {
+      box.innerHTML = `<div class="smsg info">${t("sub_confirm_q")}</div><div class="sact"><button class="btnp" id="sfConfirm">${t("sub_confirm_btn")}</button></div>`;
+      $("#sfConfirm").onclick = async () => {
+        try { const j = await subApi({action: "confirm", t: token}); load(j.sub); mode = "manage"; opts = {notice: ["ok", t("sub_confirmed")]}; draw(); }
+        catch (e) { box.innerHTML = `<div class="smsg err">${errText(e)}</div>`; }
+      };
+      return;
+    }
+    try { const j = await subApi({action: "get", t: token}); load(j.sub); draw(); }
+    catch (e) { box.innerHTML = `<div class="smsg err">${errText(e)}</div>`; }
+  })();
+}
+/* 메일 속 링크로 들어온 경우 — 처리 후 주소창에서 토큰을 지운다(화면 공유·북마크로 새지 않게) */
+function subFromUrl(){
+  const p = new URLSearchParams(location.search);
+  const c = p.get("confirm"), s = p.get("sub"), u = p.get("unsub") === "1";
+  if (!c && !s) return;
+  ["confirm", "sub", "unsub"].forEach(k => p.delete(k));
+  history.replaceState(null, "", location.pathname + (p.toString() ? "?" + p : "") + location.hash);
+  if (c) subModal("confirm", c);
+  else subModal("manage", s, u ? {focusUnsub: true, notice: ["info", t("sub_unsub_hint")]} : {});
+}
+
 /* ───────── 안전 관련 뉴스 (서버 함수 경유 — RSS는 브라우저 CORS로 직접 못 읽음) ───────── */
 let NEWS = null;   // 마지막 /api/news 응답(언어 전환 시 재요청 없이 다시 그리기 위해)
 async function loadNews(){
@@ -2460,6 +2703,10 @@ loadNews();
 setInterval(loadNews, 15 * 60 * 1000);   // 서버가 10분 캐시하므로 이 주기면 충분
 loadMofa();
 setInterval(loadMofa, 30 * 60 * 1000);   // 여행경보·공지는 하루 몇 번 바뀌는 자료가 아니다
+$("#subBtn").onclick = () => subModal("new");
+/* 신청 버튼은 발송(Gmail)·저장소(Upstash)가 둘 다 설정된 뒤에만 보인다 — 설정 전 배포에서 방문자가 "준비 중" 버튼을 보지 않게 */
+fetch("/api/subscribe?action=status").then(r => r.json()).then(j => { SUB_READY = !!j.ready; $("#subBtn").hidden = !SUB_READY; }).catch(() => {});
+subFromUrl();
 </script>
 </body>
 </html>

@@ -4,9 +4,18 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
-        { "key": "Referrer-Policy", "value": "no-referrer" },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
         {
           "key": "Content-Security-Policy",
           "value": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: https://view.eumetsat.int; connect-src 'self' https://api.open-meteo.com https://flood-api.open-meteo.com https://www.gdacs.org https://earthquake.usgs.gov; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
@@ -16,8 +25,16 @@
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/check-alerts.js": {
+      "maxDuration": 60
+    }
+  }
 }

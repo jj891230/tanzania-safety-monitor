@@ -32,6 +32,9 @@ const { fetchGdacs } = require("./_lib/gdacs.js");
 // 외교부 여행경보·대사관 안전공지(DATA_GO_KR_KEY 없으면 조용히 건너뛴다). 여행경보 단계가
 // 바뀌면 그것만으로도 즉시 메일을 보낸다 — 이 시스템에서 유일한 "정부의 공식 판단"이라서다.
 const { fetchMofa } = require("./_lib/mofa.js");
+// 메일 발송(Gmail SMTP → Resend)과 신청자 저장소(Upstash Redis) — 둘 다 설정이 없으면 예전과 똑같이 동작
+const { sendMany } = require("./_lib/mailer.js");
+const { hasStore, listSubscribers } = require("./_lib/store.js");
 
 const TZ = "Africa/Dar_es_Salaam";
 const LV = ["정상", "관심", "주의", "경계", "심각"];
@@ -405,13 +408,13 @@ module.exports = async (req, res) => {
     }
   }
 
-  // 이메일(Resend) — Vercel엔 자체 발송 기능이 없어 무료 API를 쓴다.
-  // RESEND_API_KEY만 있으면 도메인 인증 없이 onboarding@resend.dev 발신으로 바로 된다
-  // (하루 100통 무료). 커스텀 발신 도메인을 인증하면 ALERT_EMAIL_FROM으로 바꾸면 된다.
+  // 이메일 — _lib/mailer.js가 Gmail SMTP(GMAIL_USER+GMAIL_APP_PASSWORD) → Resend 순으로 보낸다.
   // 본문은 한·영 병기 — 사업수행기관(외국인 포함)에 그대로 전달할 수 있게.
-  if (shouldSend && process.env.RESEND_API_KEY && process.env.ALERT_EMAIL_TO) {
-    const color = ["#8fa3b8", "#3d8f5a", "#c9971f", "#d9682b", "#c0342b"];
-    const rows = mailList
+  // 관리자(ALERT_EMAIL_TO)에게는 예전과 똑같은 메일, 신청자에게는 각자 고른 지역·등급만 추린 메일.
+  const color = ["#8fa3b8", "#3d8f5a", "#c9971f", "#d9682b", "#c0342b"];
+  const buildHtml = (list, footExtra = "", withNotices = true) => {
+    const top = list.length ? Math.max(...list.map((a) => a.risk)) : 0;
+    const rows = list
       .map(
         (a) =>
           `<tr>` +
@@ -421,45 +424,75 @@ module.exports = async (req, res) => {
           `</tr>`
       )
       .join("");
-    const html =
+    return (
       `<div style="font-family:sans-serif;font-size:14px;line-height:1.45">` +
-      `<p><b>[탄자니아 안전모니터]</b> ${isDigest ? "일일 요약 —" : ""} 위험 등급 ${unit} ${mailList.length}건 · 최고 <b>${LV[topLv]}</b> (${stamp} EAT)<br>` +
-      `<span style="color:#888;font-size:12px">Tanzania Safety Monitor — ${isDigest ? "daily digest" : "alert"}: ${mailList.length} ${unitEn}${mailList.length > 1 ? "s" : ""}, highest ${LV_EN[topLv]}</span></p>` +
+      `<p><b>[탄자니아 안전모니터]</b> ${isDigest ? "일일 요약 —" : ""} 위험 등급 ${unit} ${list.length}건 · 최고 <b>${LV[top]}</b> (${stamp} EAT)<br>` +
+      `<span style="color:#888;font-size:12px">Tanzania Safety Monitor — ${isDigest ? "daily digest" : "alert"}: ${list.length} ${unitEn}${list.length > 1 ? "s" : ""}, highest ${LV_EN[top]}</span></p>` +
       (alarmKo ? `<p style="margin:4px 0 10px;padding:6px 10px;border-left:4px solid ${alarmChanged ? "#c0342b" : "#2e5c8a"};background:#f4f6f9">` +
         `<b>${alarmKo}</b><br><span style="color:#888;font-size:12px">${alarmEn}</span></p>` : "") +
       (useDistrict ? "" : `<p style="color:#c62828">군 단위 예보 실패로 주 단위로 대체 발송</p>`) +
-      (mailList.length ? `<table style="border-collapse:collapse">${rows}</table>` : `<p>기상·재난 축 즉시 알림 대상은 없습니다.</p>`) +
-      (recentNotices.length ? `<p style="margin-top:12px"><b>대사관 안전공지(최근 7일)</b><br>` +
+      (list.length ? `<table style="border-collapse:collapse">${rows}</table>` : `<p>기상·재난 축 즉시 알림 대상은 없습니다.</p>`) +
+      (withNotices && recentNotices.length ? `<p style="margin-top:12px"><b>대사관 안전공지(최근 7일)</b><br>` +
         recentNotices.map((x) => `${x.date} · ${x.title}`).join("<br>") + `<br><span style="color:#888;font-size:12px">전문: 대시보드 상단 패널 또는 0404.go.kr</span></p>` : "") +
       `<p style="color:#888;font-size:12px;margin-top:12px">기준: ${policyLine}. D+n = 예보 며칠째에 걸린 값인지(없으면 오늘). ` +
       `등급은 7일 예보 중 최댓값 기준이며 D+4 이후 값은 불확실성이 큽니다.` +
-      (dashUrl ? ` 상세: <a href="${dashUrl}">${dashUrl}</a> (영문: <a href="${dashUrl}?lang=en">?lang=en</a>)` : "") + `</p></div>`;
-    const ac = new AbortController();
-    const timer = setTimeout(() => ac.abort(), 8000);
-    try {
-      const r = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: process.env.ALERT_EMAIL_FROM || "KOICA 안전모니터 <onboarding@resend.dev>",
-          to: process.env.ALERT_EMAIL_TO.split(",").map((s) => s.trim()),
-          subject: alarmChanged && !mailList.length
-            ? `[탄자니아 안전모니터] 외교부 여행경보 변경 — ${alarmNow}`
-            : `[탄자니아 안전모니터] ${isDigest ? "일일 요약 · " : ""}${LV[topLv]} ${unit} ${mailList.length}건` + (alarmChanged ? " · 여행경보 변경" : ""),
-          html,
-        }),
-        signal: ac.signal,
-      });
-      posted = posted || r.ok;
-      if (!r.ok) notifyErrors.push("email: HTTP " + r.status + " " + (await r.text()).slice(0, 200));
-    } catch (e) {
-      notifyErrors.push("email: " + e.message);
-    } finally {
-      clearTimeout(timer);
-    }
+      (dashUrl ? ` 상세: <a href="${dashUrl}">${dashUrl}</a> (영문: <a href="${dashUrl}?lang=en">?lang=en</a>)` : "") + `</p>` +
+      footExtra + `</div>`
+    );
+  };
+  const subjectOf = (list) => {
+    const top = list.length ? Math.max(...list.map((a) => a.risk)) : 0;
+    return alarmChanged && !list.length
+      ? `[탄자니아 안전모니터] 외교부 여행경보 변경 — ${alarmNow}`
+      : `[탄자니아 안전모니터] ${isDigest ? "일일 요약 · " : ""}${LV[top]} ${unit} ${list.length}건` + (alarmChanged ? " · 여행경보 변경" : "");
+  };
+  const outbox = []; // [{to, subject, html, headers, who}]
+  if (shouldSend && process.env.ALERT_EMAIL_TO) {
+    outbox.push({ who: "admin", to: process.env.ALERT_EMAIL_TO.split(",").map((s) => s.trim()).filter(Boolean),
+      subject: subjectOf(mailList), html: buildHtml(mailList) });
+  }
+
+  // ── 신청자(대시보드 「경보 메일」로 신청·확인한 사람) ──
+  // 각자 고른 지역(주 전체 또는 개별 군)·최소 등급으로 current를 추린다. 즉시 알림은 관리자와 같은
+  // 선행일(LEAD) 제한 + 항상 "신규/등급 상승"만 — ALERT_MODE=always라도 신청자에게 15분마다 같은
+  // 메일이 가지 않게 한다. 이전 상태(prev)가 없으면(상태 파일 유실 등) 폭주를 막으려고 건너뛴다.
+  // 여행경보 단계 변경은 지역과 무관하게 전원에게 알린다.
+  let subscribers = [], subStats = { total: 0, mailed: 0 };
+  if (hasStore()) {
+    try { subscribers = await listSubscribers(); } catch (e) { sourceFails.push("subscribers: " + e.message); }
+  }
+  subStats.total = subscribers.length;
+  const zoneOfDistrict = Object.fromEntries(districtBase.map((d) => [d.name, d.zone]));
+  const wants = (s, a) => {
+    const R = s.regions || [], D = s.districts || [];
+    if (!R.length && !D.length) return true;
+    return useDistrict ? R.includes(a.zone) || D.includes(a.district)
+                       : R.includes(a.region) || D.some((d) => zoneOfDistrict[d] === a.region);
+  };
+  const isNewOrUp = (a) => { const p = prevItems[a.key]; return !p || (p.lv || 0) < a.risk; };
+  for (const s of subscribers) {
+    if (isDigest && !s.digest) continue;
+    if (!isDigest && !(prev && prev.items)) continue;
+    const minLv = [2, 3, 4].includes(+s.minLevel) ? +s.minLevel : 3;
+    const list = current.filter((a) => a.risk >= minLv && wants(s, a) && (isDigest || (a.lead < LEAD && isNewOrUp(a))));
+    if (!list.length && !(alarmChanged && !isDigest)) continue;
+    const manage = dashUrl ? `${dashUrl}?sub=${s.token}` : "";
+    const unsubApi = dashUrl ? `${dashUrl}api/subscribe?action=unsub&t=${s.token}` : "";
+    const area = !(s.regions || []).length && !(s.districts || []).length ? "전국" :
+      [...(s.regions || []).map((r) => r + " 주"), ...(s.districts || []).map((d) => d + " 군")].join(", ");
+    const foot = `<p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:8px">` +
+      `신청하신 조건(${area} · ${LV[minLv]} 이상)에 해당해 발송된 메일입니다. / You receive this because you subscribed (${LV_EN[minLv]}+).` +
+      (manage ? `<br><a href="${manage}">지역·등급 변경 / Change</a> · <a href="${manage}&unsub=1">수신 해지 / Unsubscribe</a>` : "") + `</p>`;
+    outbox.push({ who: "sub", to: [s.email], subject: subjectOf(list), html: buildHtml(list, foot, isDigest),
+      headers: unsubApi ? { "List-Unsubscribe": `<${unsubApi}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {} });
+  }
+
+  if (outbox.length) {
+    const results = await sendMany(outbox);
+    results.forEach((r, i) => {
+      if (r.ok) { posted = true; if (outbox[i].who === "sub") subStats.mailed++; }
+      else notifyErrors.push((outbox[i].who === "admin" ? "admin " : "subscriber ") + r.error);
+    });
   }
 
   const summary = `${isDigest ? "digest" : mailKind} · ${unit} ${current.length}건 중 알림 ${mailList.length}건` + (topLv ? ` · 최고 ${LV[topLv]}` : "") + (alarmChanged ? " · 여행경보 변경" : "");
@@ -473,6 +506,7 @@ module.exports = async (req, res) => {
     mailUnit: unit,
     mailKind,
     mailed: mailList.length,
+    subscribers: subStats,
     posted,
     summary,
     alerts: alerts.slice(0, 10).map(({ key, region, project, risk, lead, hitsText }) => ({ key, region, project, risk, lead, hits: hitsText })),
