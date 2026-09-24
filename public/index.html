@@ -44,6 +44,15 @@ h1{margin:0;font-size:20px;letter-spacing:-.3px;color:var(--accent)}
 button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);
   border-radius:6px;padding:6px 11px;cursor:pointer}
 button:hover{border-color:var(--accent);color:var(--accent)}
+/* 모바일 머리글 — 제목 한 줄, 상태·버튼 한 줄로 묶는다(예전엔 버튼이 두 줄로 흩어져 183px를 차지) */
+@media(max-width:600px){
+  header{gap:6px 8px;align-items:center}
+  header>div:first-child{flex:1 1 100%}
+  h1{font-size:18px}
+  .hspace{display:none}
+  .status{flex:1;min-width:0;font-size:11px}
+  header button{padding:5px 9px;font-size:12px}
+}
 
 /* ── layout ── */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:12px}
@@ -71,7 +80,12 @@ button:hover{border-color:var(--accent);color:var(--accent)}
 .grid2.eqrow #quakes{max-height:150px}       /* 하천 게이지(6줄) 높이에 맞춘 값 — 넘치면 스크롤 */
 .grid2.eqrow #mofaNotices{max-height:210px}   /* 뉴스 패널(목록 320px) 높이에 맞춘 값 */
 .grid2.eqrow .mofa{display:flex}
-@media(max-width:1180px){.grid2{grid-template-columns:1fr}}
+/* 1fr(= minmax(auto,1fr))로 두면 열이 내용의 최소폭 아래로 못 줄어든다 — 숫자 표는 칸이
+   nowrap이라 최소폭이 780px쯤 되어, 모바일에서 '숫자 표'를 누르면 패널과 페이지 전체가
+   양옆으로 794px까지 늘어났다(375px 화면에서 실측). minmax(0,…)와 min-width:0으로 열을
+   화면 폭에 묶고, 넘치는 표는 .scroll 안에서만 가로로 밀리게 한다. */
+.grid2>*{min-width:0}
+@media(max-width:1180px){.grid2{grid-template-columns:minmax(0,1fr)}}
 
 /* ── KPI ── */
 .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:12px}
@@ -200,6 +214,17 @@ tbody tr:hover{background:var(--line2)}
 .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;
   background:var(--accent2);color:var(--accent);font-weight:600}
 .bar{display:inline-block;height:7px;border-radius:3px;background:var(--accent);vertical-align:1px}
+/* 모바일 숫자 표 — 가로로 밀어 보되 첫 열(주·하천 이름)은 왼쪽에 고정해 어느 행인지 잃지 않게 */
+@media(max-width:720px){
+  .scroll{-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .scroll th,.scroll td{padding:6px 7px}
+  .scroll th:first-child,.scroll td:first-child{position:sticky;left:0;z-index:1;
+    background:var(--panel);box-shadow:1px 0 0 var(--line)}
+  .scroll th:first-child{z-index:2;background:var(--accent2)}
+  .scroll .bar{display:none}
+  .swipehint{display:block!important}
+}
+.swipehint{display:none;position:sticky;left:0;font-size:10.5px;color:var(--ink3);padding:6px 10px 0}
 
 /* ── roster ── */
 .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(228px,1fr));gap:9px}
@@ -341,6 +366,8 @@ tbody tr:hover{background:var(--line2)}
 .seg button:first-child{border-radius:5px 0 0 5px}
 .seg button:last-child{border-radius:0 5px 5px 0;border-right-width:1px}
 .seg button.on{background:var(--accent2);border-color:var(--accent);color:var(--accent);font-weight:700}
+/* 터치 화면에서 25px 버튼은 누르기 어렵다 — 손가락 화면에서만 높이를 키운다 */
+@media(pointer:coarse){.seg button{min-height:34px;padding:5px 12px;font-size:12px}}
 
 /* ── 위험 히트맵 — 31개 주 × 6개 축. 정상 칸은 비워 두고 임계 근접 칸에만 색과 수치 ── */
 .hm{display:grid;gap:0 24px;padding:11px 13px;align-items:start}
@@ -452,7 +479,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
       <span class="note" id="tblnote"></span>
       <span class="seg"><button id="vHeat" class="on" data-t="heat">히트맵</button><button id="vTbl" data-t="table">숫자 표</button></span></div>
     <div class="hm" id="hm"></div>
-    <div class="scroll" id="tblbox" style="max-height:480px;display:none"><table id="tbl"></table></div>
+    <div class="scroll" id="tblbox" style="max-height:480px;display:none"><div class="swipehint" data-t="swipe"></div><table id="tbl"></table></div>
   </div>
   <div class="panel">
     <div class="phead"><h2 data-t="gdacs">GDACS 활성 재해</h2><span class="note" id="gcount"></span></div>
@@ -470,7 +497,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
       <span class="note" data-t="rivers_note">GloFAS · 세로선 = 그날의 평년값</span>
       <span class="seg"><button id="vGauge" class="on" data-t="gauge">게이지</button><button id="vRtbl" data-t="table">숫자 표</button></span></div>
     <div class="gwrap" id="rgauge"></div>
-    <div class="scroll" id="rtblbox" style="display:none"><table id="rtbl"></table></div>
+    <div class="scroll" id="rtblbox" style="display:none"><div class="swipehint" data-t="swipe"></div><table id="rtbl"></table></div>
   </div>
   <div class="panel">
     <div class="phead"><h2 data-t="quakes">최근 지진</h2>
@@ -653,6 +680,7 @@ ko: {
   hm_normal:(n) => `정상 ${units(n)}`,
   tblnote_heat:() => `임계 이상 ${UNIT()}만 표시 · 정상 지역은 접어둠 · ${UNIT()} 클릭 시 상세`,
   tblnote_tbl:"평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬",
+  swipe:"← 표를 옆으로 밀면 나머지 열이 보입니다 · 이름 열은 고정",
   why_rain:(r, pk, td) => `최대 ${r.rain.maxD.toFixed(0)}mm` + (pk ? ` (${shortDate(pk)})` : "") + ` · 오늘 ${td.toFixed(0)}mm · 7일 누적 ${r.rain.acc7.toFixed(0)}mm`,
   why_ratio:(r) => ` = ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 ${(r.rain.ratio*100).toFixed(0)}%` + (r.rain.by === "ratio" ? " ← 평년 대비가 등급을 결정" : ""),
   why_heat:(r) => `체감최고 ${r.ht.t.toFixed(1)}℃ (기온 ${r.ht.a.toFixed(1)}℃)`, why_gust:(r) => `최대돌풍 ${r.gu.g.toFixed(0)}km/h`,
@@ -777,6 +805,7 @@ en: {
   hm_normal:(n) => `Normal: ${units(n)}`,
   tblnote_heat:() => `Only ${UNIT()}s at or above thresholds · normal areas collapsed · click a ${UNIT()} for details`,
   tblnote_tbl:"Normal = ERA5 2006-2025 · click a header to sort",
+  swipe:"← Swipe the table sideways for more columns · name column stays fixed",
   why_rain:(r, pk, td) => `max ${r.rain.maxD.toFixed(0)} mm` + (pk ? ` (${shortDate(pk)})` : "") + ` · today ${td.toFixed(0)} mm · 7-day total ${r.rain.acc7.toFixed(0)} mm`,
   why_ratio:(r) => ` = ${(r.rain.ratio*100).toFixed(0)}% of the ${MN_EN[MONTH]} normal (${r.rain.norm.toFixed(0)} mm)` + (r.rain.by === "ratio" ? " ← anomaly sets the level" : ""),
   why_heat:(r) => `apparent max ${r.ht.t.toFixed(1)} ℃ (air ${r.ht.a.toFixed(1)} ℃)`, why_gust:(r) => `max gust ${r.gu.g.toFixed(0)} km/h`,
