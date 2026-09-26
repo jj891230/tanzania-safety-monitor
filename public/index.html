@@ -800,7 +800,7 @@ ko: {
   why_rain:(r, pk, td) => `최대 ${r.rain.maxD.toFixed(0)}mm` + (pk ? ` (${shortDate(pk)})` : "") + ` · 오늘 ${td.toFixed(0)}mm · 7일 누적 ${r.rain.acc7.toFixed(0)}mm`,
   why_ratio:(r) => ` = ${MONTH+1}월 평년(${r.rain.norm.toFixed(0)}mm)의 ${(r.rain.ratio*100).toFixed(0)}%` + (r.rain.by === "ratio" ? " ← 평년 대비가 등급을 결정" : ""),
   why_heat:(r) => `체감최고 ${r.ht.t.toFixed(1)}℃ (기온 ${r.ht.a.toFixed(1)}℃)`, why_gust:(r) => `최대돌풍 ${r.gu.g.toFixed(0)}km/h`,
-  why_fire:(r) => `반경 내 GDACS 산불 ${r.nwf}건`, why_eq:(r) => `최근 30일 최대 M${r.mqF.toFixed(1)} (1년 최대 M${r.mq.toFixed(1)})`,
+  why_fire:(r) => `반경 내 GDACS 산불 ${r.nwf}건` + (r.fire <= 1 && r.nwf ? " (모두 Green — 일상 소각 수준)" : ""), why_eq:(r) => `최근 30일 최대 M${r.mqF.toFixed(1)} (1년 최대 M${r.mq.toFixed(1)})`,
   why_river:(v, today) => `${rvn(v)} ${shortDate(v.peakDay)} 예상 평년 대비 ${times(v.ratio,2)}` + (today ? " (오늘 기준)" : ` · 오늘은 ${times(v.cur/v.mean,2)}로 정상`),
   hm_fire:(n) => `${n}건`,
   // 게이지
@@ -951,7 +951,7 @@ en: {
   why_rain:(r, pk, td) => `max ${r.rain.maxD.toFixed(0)} mm` + (pk ? ` (${shortDate(pk)})` : "") + ` · today ${td.toFixed(0)} mm · 7-day total ${r.rain.acc7.toFixed(0)} mm`,
   why_ratio:(r) => ` = ${(r.rain.ratio*100).toFixed(0)}% of the ${MN_EN[MONTH]} normal (${r.rain.norm.toFixed(0)} mm)` + (r.rain.by === "ratio" ? " ← anomaly sets the level" : ""),
   why_heat:(r) => `apparent max ${r.ht.t.toFixed(1)} ℃ (air ${r.ht.a.toFixed(1)} ℃)`, why_gust:(r) => `max gust ${r.gu.g.toFixed(0)} km/h`,
-  why_fire:(r) => `${r.nwf} GDACS wildfire${r.nwf>1?"s":""} within radius`, why_eq:(r) => `max M${r.mqF.toFixed(1)} in 30 days (M${r.mq.toFixed(1)} in 1 year)`,
+  why_fire:(r) => `${r.nwf} GDACS wildfire${r.nwf>1?"s":""} within radius` + (r.fire <= 1 && r.nwf ? " (all Green — routine burning)" : ""), why_eq:(r) => `max M${r.mqF.toFixed(1)} in 30 days (M${r.mq.toFixed(1)} in 1 year)`,
   why_river:(v, today) => `${rvn(v)} ${times(v.ratio,2)} normal expected ${shortDate(v.peakDay)}` + (today ? " (today)" : ` · today ${times(v.cur/v.mean,2)}, normal`),
   hm_fire:(n) => `${n}`,
   gauge_tip:(v) => `${rvn(v)} — forecast ${v.peak.toFixed(1)} on ${shortDate(v.peakDay)} · normal that day ${v.peakMean.toFixed(1)} (m³/s)`,
@@ -1134,10 +1134,17 @@ function parseGdacs(raw){
 }
 /* 산불 축은 GDACS에서만 나온다. gd가 없으면(초기 로드 실패 시) 0으로 두고
    나중에 retryGdacs()가 성공하면 이 계산을 다시 돌려 채워 넣는다. */
+/* 산불 등급 — GDACS 경보 수준을 본다(2026-09-27 변경). 예전엔 반경 안 건수만 세서 Green(가장 낮은 등급,
+   건기 일상 소각 수준) 2건으로도 '주의'가 떴다(음베야, 5건 모두 Green). 이제 Green만 있으면 '관심'까지,
+   Orange 1건 '주의' · 2건 이상 '경계', Red '심각'. 대시보드와 check-alerts.js가 반드시 같아야 한다. */
+function fireLv(ev){
+  const n = a => ev.filter(e => (e.alert || "green") === a).length;
+  return n("red") ? 4 : n("orange") >= 2 ? 3 : n("orange") ? 2 : ev.length ? 1 : 0;
+}
 function applyFire(rows, wf){
   rows.forEach(r => {
     const nwf = nearEvents(wf, r.lat, r.lon, 1.1);
-    r.fire = nwf.length >= 5 ? 3 : nwf.length >= 2 ? 2 : nwf.length ? 1 : 0;
+    r.fire = fireLv(nwf);
     r.nwf = nwf.length;
     r.axes.산불 = r.fire;
     r.risk = Math.max(...Object.values(r.axes));

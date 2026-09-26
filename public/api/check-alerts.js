@@ -34,7 +34,49 @@ const { fetchGdacs } = require("./_lib/gdacs.js");
 const { fetchMofa } = require("./_lib/mofa.js");
 // 메일 발송(Gmail SMTP → Resend)과 신청자 저장소(Upstash Redis) — 둘 다 설정이 없으면 예전과 똑같이 동작
 const { sendMany } = require("./_lib/mailer.js");
-const { hasStore, listSubscribers } = require("./_lib/store.js");
+const { hasStore, listSubscribers, redis, parse } = require("./_lib/store.js");
+
+// ── 예약 실행 · 캐시 (2026-09-27) ──
+// GitHub Actions의 "15분마다"가 실제로는 하루 7회(3~4시간 간격)밖에 안 돌았다(무료 공개 저장소의 예약
+// 실행은 GitHub이 임의로 미루거나 건너뛴다). 그래서 주 스케줄러를 Upstash QStash(무료)로 옮긴다:
+//   - QStash가 5분마다 이 함수를 부른다. 스케줄은 이 함수가 QSTASH_TOKEN이 생기면 스스로 등록한다
+//     (Upstash-Forward-Authorization으로 ALERT_SECRET을 실어 보내므로 누구도 비밀값을 옮겨 적지 않는다).
+//   - 이전 상태(alert:state)를 Redis에 둬서 어느 스케줄러가 불러도 "신규/상승" 비교가 이어진다.
+//     GitHub 워크플로는 백업으로 남는다. 동시에 불려도 잠금(lock:check)으로 한 번만 판정·발송.
+//   - Open-Meteo 무료 한도(하루 1만 건, 여러 지점 요청은 지점 수만큼 계산) 때문에 예보는 1시간,
+//     하천은 3시간, 외교부는 30분 캐시한다. 5분마다 새로 받는 건 지진·GDACS뿐이다.
+//     (캐시 없이 15분마다면 96회 × 약 207지점 ≈ 2만 건으로 한도를 넘는다. 예보 모델 자체가 1~6시간마다 갱신.)
+const SCHED_BASE = process.env.MONITOR_URL || "https://tanzania-safety-monitor.vercel.app";
+async function cached(key, ttl, fn, ok = () => true) {
+  if (!hasStore()) return fn();
+  try { const v = await redis("GET", key); if (v) return JSON.parse(v); } catch {}
+  const val = await fn();
+  if (ok(val)) { try { await redis("SET", key, JSON.stringify(val), "EX", ttl); } catch {} }
+  return val;
+}
+// QStash 스케줄 등록(한 번만) — 고정 ID로 올리므로 다시 불려도 같은 스케줄을 덮어쓸 뿐 늘지 않는다.
+async function ensureSchedules() {
+  if (!process.env.QSTASH_TOKEN || !hasStore() || process.env.VERCEL_ENV !== "production") return null;
+  try { if (await redis("GET", "qstash:v1")) return "ok"; } catch { return null; }
+  const base = (process.env.QSTASH_URL || "https://qstash.upstash.io").replace(/\/+$/, "");
+  const dest = SCHED_BASE.replace(/\/+$/, "") + "/api/check-alerts";
+  const mk = async (id, cron, body) => {
+    const r = await fetch(`${base}/v2/schedules/${dest}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.QSTASH_TOKEN}`, "Content-Type": "application/json",
+        "Upstash-Schedule-Id": id, "Upstash-Cron": cron, "Upstash-Method": "POST", "Upstash-Retries": "0",
+        "Upstash-Forward-Authorization": `Bearer ${process.env.ALERT_SECRET || ""}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(id + " HTTP " + r.status + " " + (await r.text()).slice(0, 150));
+  };
+  await mk("tsm-check", "*/5 * * * *", {});
+  await mk("tsm-digest", "0 4 * * *", { digest: 1 });   // 04:00 UTC = 07:00 EAT
+  await redis("SET", "qstash:v1", new Date().toISOString());
+  return "created";
+}
 
 const TZ = "Africa/Dar_es_Salaam";
 const LV = ["정상", "관심", "주의", "경계", "심각"];
@@ -86,6 +128,13 @@ function gust(daily) {
   const a = (daily.wind_gusts_10m_max || []).map((v) => v ?? 0);
   const g = Math.max(0, ...a);
   return { lv: g >= 100 ? 4 : g >= 80 ? 3 : g >= 60 ? 2 : 0, g, idx: Math.max(0, a.indexOf(g)) };
+}
+/* 산불 등급 — GDACS 경보 수준을 본다(2026-09-27 변경). 예전엔 반경 안 건수만 세서 Green(가장 낮은 등급,
+   건기 일상 소각 수준) 2건으로도 '주의'가 떴다(음베야, 5건 모두 Green). 이제 Green만 있으면 '관심'까지,
+   Orange 1건 '주의' · 2건 이상 '경계', Red '심각'. 대시보드와 check-alerts.js가 반드시 같아야 한다. */
+function fireLv(ev) {
+  const n = (a) => ev.filter((e) => (e.alert || "green") === a).length;
+  return n("red") ? 4 : n("orange") >= 2 ? 3 : n("orange") ? 2 : ev.length ? 1 : 0;
 }
 function nearEvents(list, lat, lon, deg) {
   return list.filter((e) => Math.abs(e.lat - lat) <= deg && Math.abs(e.lon - lon) <= deg);
@@ -150,11 +199,30 @@ module.exports = async (req, res) => {
   const MIN_LV = Math.min(4, Math.max(2, intEnv("ALERT_MIN_LEVEL", 2)));
   const LEAD = Math.min(7, Math.max(1, intEnv("ALERT_LEAD_DAYS", 7)));
   const DIGEST_LV = Math.min(4, Math.max(1, intEnv("ALERT_DIGEST_LEVEL", 2)));
-  const isDigest = String(req.query.digest || "") === "1";
-  // 이전 상태 — 워크플로가 저장해 둔 alert-state.json을 POST 본문 {prev: ...}로 넘긴다
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch { body = null; } }
-  const prev = (body && (body.prev || body.items ? (body.prev || body) : null)) || null;
+  const isDigest = String(req.query.digest || (body && body.digest) || "") === "1";
+  const useStore = hasStore();
+  let schedule = null;
+  try { schedule = await ensureSchedules(); } catch (e) { schedule = "error: " + e.message; }
+  // 동시 실행 방지 — QStash(5분)와 GitHub(백업)가 겹쳐도 한 번만 판정·발송. 90초 뒤 자동 해제.
+  if (useStore) {
+    let got = "OK";
+    try { got = await redis("SET", "lock:check", "1", "NX", "EX", 90); } catch {}
+    if (got !== "OK") { res.status(200).json({ skipped: "locked", schedule }); return; }
+  }
+  const unlock = async () => { if (useStore) { try { await redis("DEL", "lock:check"); } catch {} } };
+  // 일일 요약은 하루 한 번만(QStash와 GitHub 크론이 둘 다 부른다)
+  if (isDigest && useStore) {
+    let first = "OK";
+    try { first = await redis("SET", "digest:" + todayTZ(), "1", "NX", "EX", 172800); } catch {}
+    if (first !== "OK") { await unlock(); res.status(200).json({ skipped: "digest-already-sent", schedule }); return; }
+  }
+  // 이전 상태 — Redis(alert:state)가 있으면 그것을, 없으면 예전처럼 워크플로가 POST로 넘긴 alert-state.json
+  let storedPrev = null;
+  if (useStore) { try { storedPrev = parse(await redis("GET", "alert:state")); } catch {} }
+  const bodyPrev = (body && (body.prev || body.items ? (body.prev || body) : null)) || null;
+  const prev = storedPrev || (bodyPrev && bodyPrev.items ? bodyPrev : null) || bodyPrev;
   const prevItems = (prev && prev.items) || {};
 
   const lat = baseline.map((r) => r.lat).join(",");
@@ -170,18 +238,18 @@ module.exports = async (req, res) => {
     // 이 둘만 재시도한다 — 주 예보는 없으면 점검 자체가 불가능하고(아래 502),
     // 군 예보는 없으면 메일이 주 단위로 떨어져 쓸모가 준다. 나머지 셋은 없어도
     // 해당 축만 빠지므로 한 번만 시도한다.
-    jgetRetry(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${fcParams}`),
+    cached("c:fc:" + todayTZ(), 3600, () => jgetRetry(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${fcParams}`)),
     // 위험 알림 메일은 군(Wilaya) 단위로 보내야 해서(대시보드 토글과 같은 이유 — 어느
     // 주가 아니라 어느 군인지까지 알아야 실무적으로 쓸모 있다) 170곳 예보를 따로 받는다.
-    jgetRetry(`https://api.open-meteo.com/v1/forecast?latitude=${dlat}&longitude=${dlon}${fcParams}`),
-    jget(`https://flood-api.open-meteo.com/v1/flood?latitude=${rlat}&longitude=${rlon}&daily=river_discharge,river_discharge_mean&forecast_days=14`),
+    cached("c:fcD:" + todayTZ(), 3600, () => jgetRetry(`https://api.open-meteo.com/v1/forecast?latitude=${dlat}&longitude=${dlon}${fcParams}`)),
+    cached("c:flood:" + todayTZ(), 10800, () => jget(`https://flood-api.open-meteo.com/v1/flood?latitude=${rlat}&longitude=${rlon}&daily=river_discharge,river_discharge_mean&forecast_days=14`)),
     // GDACS: RSS(1~3초) → 실패 시 예전 SEARCH JSON(20초) 순으로 시도. 둘 다 안 되면 산불 축 0건.
     fetchGdacs({ timeoutMs: 12000, searchTimeoutMs: 20000 }),
     jget(
       `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=-13&maxlatitude=0&minlongitude=28&maxlongitude=42&minmagnitude=4&starttime=${from}&limit=100`
     ),
     process.env.DATA_GO_KR_KEY
-      ? fetchMofa({ key: process.env.DATA_GO_KR_KEY, timeoutMs: 10000, notices: 10 })
+      ? cached("c:mofa", 1800, () => fetchMofa({ key: process.env.DATA_GO_KR_KEY, timeoutMs: 10000, notices: 10 }), (m) => m && m.alarm && !(m.errors && m.errors.length))
       : Promise.reject(new Error("DATA_GO_KR_KEY 없음(선택)")),
   ]);
 
@@ -203,6 +271,7 @@ module.exports = async (req, res) => {
   ].filter(Boolean);
 
   if (!fc) {
+    await unlock();
     res.status(502).json({ error: "핵심 기상 데이터 실패", sourceFails });
     return;
   }
@@ -219,7 +288,7 @@ module.exports = async (req, res) => {
       const to = String(p.todate || "").slice(0, 10);
       const active = !to || to >= CUT;
       if ((p.eventtype || "").toUpperCase() === "WF" && c[1] != null && active) {
-        wf.push({ lon: c[0], lat: c[1] });
+        wf.push({ lon: c[0], lat: c[1], alert: String(p.alertlevel || "green").toLowerCase() });
       }
     }
   }
@@ -268,7 +337,7 @@ module.exports = async (req, res) => {
     const ht = heat(daily);
     const gu = gust(daily);
     const nwf = nearEvents(wf, r.lat, r.lon, 1.1);
-    const fire = nwf.length >= 5 ? 3 : nwf.length >= 2 ? 2 : nwf.length ? 1 : 0;
+    const fire = fireLv(nwf);
     const nq = nearEvents(eq, r.lat, r.lon, 1.8).filter((q) => Date.now() - q.t <= 30 * 864e5);
     const mq = nq.length ? Math.max(...nq.map((q) => q.mag)) : 0;
     const quake = mq >= 5.5 ? 3 : mq >= 4.5 ? 2 : mq ? 1 : 0;
@@ -515,9 +584,12 @@ module.exports = async (req, res) => {
   }
 
   const summary = `${isDigest ? "digest" : mailKind} · ${unit} ${current.length}건 중 알림 ${mailList.length}건` + (topLv ? ` · 최고 ${LV[topLv]}` : "") + (alarmChanged ? " · 여행경보 변경" : "");
+  if (useStore) { try { await redis("SET", "alert:state", JSON.stringify(state)); } catch (e) { sourceFails.push("state: " + e.message); } }
+  await unlock();
   res.status(200).json({
     checkedAt: new Date().toISOString(),
-    policy: { mode: MODE, minLevel: MIN_LV, leadDays: LEAD, digestLevel: DIGEST_LV, digest: isDigest, hadPrev: !!prev },
+    policy: { mode: MODE, minLevel: MIN_LV, leadDays: LEAD, digestLevel: DIGEST_LV, digest: isDigest, hadPrev: !!prev, prevFrom: storedPrev ? "redis" : bodyPrev ? "body" : null },
+    schedule,
     regionsChecked: baseline.length,
     districtsChecked: fcD ? districtBase.length : 0,
     alertCount: alerts.length,
