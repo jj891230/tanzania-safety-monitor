@@ -1,6 +1,9 @@
 // 메일 발송 공용 모듈 — 경보(check-alerts)와 신청 확인(subscribe)이 같이 쓴다.
 //
 // 발송 경로(위에서부터 먼저 설정된 것):
+//   0) Brevo       — BREVO_API_KEY + BREVO_SENDER(Brevo에서 인증한 보내는 주소). 하루 300통 무료.
+//                    도메인 인증 없이 주소 하나만 인증해 쓸 수 있다(사무소 선택 2026-09-27). 이 경우
+//                    받는 쪽에서 스팸으로 분류될 수 있어, 도착률이 문제되면 Brevo에 도메인을 인증한다.
 //   1) Gmail SMTP  — GMAIL_USER + GMAIL_APP_PASSWORD(구글 계정 "앱 비밀번호" 16자리).
 //                    도메인 인증 없이 아무 주소에나 보낼 수 있다(하루 약 500통).
 //   2) Resend      — RESEND_API_KEY. 발신 도메인을 인증하지 않은 onboarding@resend.dev는
@@ -15,7 +18,8 @@ const crypto = require("crypto");
 
 const hasGmail = () => !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
 // 신청자에게 보낼 수 있는가 — Gmail이 있거나, Resend에 인증된 발신 주소(ALERT_EMAIL_FROM)가 있을 때
-const canMailAnyone = () => hasGmail() || !!(process.env.RESEND_API_KEY && process.env.ALERT_EMAIL_FROM);
+const hasBrevo = () => !!(process.env.BREVO_API_KEY && process.env.BREVO_SENDER);
+const canMailAnyone = () => hasBrevo() || hasGmail() || !!(process.env.RESEND_API_KEY && process.env.ALERT_EMAIL_FROM);
 
 const b64 = (s) => Buffer.from(s, "utf8").toString("base64");
 const encWord = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${b64(s)}?=`);
@@ -97,6 +101,28 @@ function smtpSession(timeoutMs = 20000) {
   });
 }
 
+// Brevo 트랜잭션 메일 API — 한 통씩 보낸다(수신자끼리 주소가 보이지 않게).
+async function sendBrevo({ to, subject, html, headers }) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    const r = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "api-key": process.env.BREVO_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        sender: { name: process.env.ALERT_FROM_NAME || "KOICA 탄자니아 안전모니터", email: process.env.BREVO_SENDER },
+        to: to.map((email) => ({ email })),
+        subject, htmlContent: html,
+        ...(headers && Object.keys(headers).length ? { headers } : {}),
+      }),
+      signal: ac.signal,
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status + " " + (await r.text()).slice(0, 200));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function sendResend({ to, subject, html, headers }) {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 8000);
@@ -120,6 +146,14 @@ async function sendResend({ to, subject, html, headers }) {
 // 결과: [{ok, error?}] (입력 순서 그대로). 한 통 실패가 나머지를 막지 않는다.
 async function sendMany(msgs) {
   if (!msgs.length) return [];
+  if (hasBrevo()) {
+    const out = [];
+    for (const m of msgs) {
+      try { await sendBrevo(m); out.push({ ok: true }); }
+      catch (e) { out.push({ ok: false, error: "brevo: " + e.message }); }
+    }
+    return out;
+  }
   if (hasGmail()) {
     let s;
     try {
@@ -146,4 +180,4 @@ async function sendMany(msgs) {
   return msgs.map(() => ({ ok: false, error: "메일 발송 설정 없음" }));
 }
 
-module.exports = { sendMany, hasGmail, canMailAnyone };
+module.exports = { sendMany, hasBrevo, hasGmail, canMailAnyone };
