@@ -127,7 +127,9 @@ async function jgetRetry(url, timeoutMs = 12000, tries = 2) {
 // 추적해 이 JSON들을 함수 배포물에 자동 포함시킨다. fs.readFile(런타임 경로)는
 // 이 추적을 타지 않아 배포 후 "파일 없음"으로 깨질 수 있어 피한다.
 const baseline = require("../data/baseline.json");
-const riversCfg = require("../data/rivers.json");
+// 대시보드(build.py)와 같은 기준 — 평년유량 1m³/s 미만(킬롬베로·그레이트루아하)은 신호가 없어 뺀다.
+// 빼지 않았더니 건기에 0.2m³/s 대비 "2.25배"로 모로고로 전체가 메일에서만 경계로 떴다(2026-09-27 발견).
+const riversCfg = require("../data/rivers.json").filter((r) => r.meanFlow >= 1.0);
 // 170개 군(Wilaya) 기준선 — 폴리곤(rings)은 이메일에 필요 없어 빼고 위경도+평년값만
 // 담은 경량판(대시보드가 쓰는 districts.json과 다른 파일, build.py와 별개로 생성).
 const districtBase = require("../data/baseline_district.json");
@@ -340,7 +342,11 @@ module.exports = async (req, res) => {
   const current = useDistrict ? districtAlerts : alerts;
   const unit = useDistrict ? "군" : "주";
   const unitEn = useDistrict ? "district" : "region";
-  const nameOf = (a) => (useDistrict ? `${a.district} (${a.zone})` : a.region + (a.project ? ` (${a.project})` : ""));
+  const nameOf = (a) => (useDistrict ? `${a.district} (${a.zone})` : a.region);
+  // KOICA 사업 소재지 — 대시보드(교민 공개)에서는 뺐고, 관리자 메일·Slack에서만 알려 준다(2026-09-25).
+  // 사업지는 주 단위로만 관리되므로 군 경보는 상위 주(zone)의 사업을 붙인다.
+  const REGION_PROJECT = Object.fromEntries(baseline.map((r) => [r.name, r.project || ""]));
+  const projOf = (a) => REGION_PROJECT[useDistrict ? a.zone : a.region] || "";
   const nameEn = (a) => (useDistrict ? `${a.districtEn} (${a.zoneEn})` : a.regionEn);
 
   // ── 이번 호출에서 실제로 알릴 목록 ──
@@ -387,7 +393,7 @@ module.exports = async (req, res) => {
 
   // Slack(선택) — SLACK_WEBHOOK_URL을 넣으면 자동으로 같이 발송된다(같은 목록·같은 판단).
   if (shouldSend && process.env.SLACK_WEBHOOK_URL) {
-    const lines = mailList.map((a) => `• *${nameOf(a)}* — ${a.hitsText.join(", ")}`);
+    const lines = mailList.map((a) => `• *${nameOf(a)}*${projOf(a) ? ` [KOICA ${projOf(a)}]` : ""} — ${a.hitsText.join(", ")}`);
     const text = `*[탄자니아 안전모니터] ${isDigest ? "일일 요약" : "위험 등급"} ${unit} ${mailList.length}건 (최고 ${LV[topLv]})*\n${lines.join("\n")}` + (alarmKo ? `\n${alarmKo}` : "");
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), 8000);
@@ -412,13 +418,25 @@ module.exports = async (req, res) => {
   // 본문은 한·영 병기 — 사업수행기관(외국인 포함)에 그대로 전달할 수 있게.
   // 관리자(ALERT_EMAIL_TO)에게는 예전과 똑같은 메일, 신청자에게는 각자 고른 지역·등급만 추린 메일.
   const color = ["#8fa3b8", "#3d8f5a", "#c9971f", "#d9682b", "#c0342b"];
-  const buildHtml = (list, footExtra = "", withNotices = true) => {
+  // admin=true(관리자 메일): 행마다 KOICA 사업을 붙이고, 사업지 해당 건을 맨 위에 요약한다. 신청자 메일에는 없음.
+  const buildHtml = (list, footExtra = "", withNotices = true, admin = false) => {
+    if (admin) list = [...list].sort((a, b) => (projOf(b) ? 1 : 0) - (projOf(a) ? 1 : 0) || b.risk - a.risk);
+    const projHits = admin ? list.filter((a) => projOf(a)) : [];
+    const projByRegion = {};
+    projHits.forEach((a) => { const z = useDistrict ? a.zone : a.region; (projByRegion[z] = projByRegion[z] || []).push(a); });
+    const projBox = !admin ? "" :
+      `<p style="margin:4px 0 10px;padding:6px 10px;border-left:4px solid #2e5c8a;background:#eef3f9"><b>KOICA 사업 소재지</b> — ` +
+      (projHits.length
+        ? Object.entries(projByRegion).map(([z, arr]) => `${z}(${REGION_PROJECT[z]}): ` +
+            arr.map((a) => `${useDistrict ? a.district + " " : ""}${LV[a.risk]}`).join(", ")).join("<br>")
+        : "이번 목록에 해당 없음") + `</p>`;
     const top = list.length ? Math.max(...list.map((a) => a.risk)) : 0;
     const rows = list
       .map(
         (a) =>
           `<tr>` +
-          `<td style="padding:5px 10px 5px 0;vertical-align:top;white-space:nowrap"><b>${nameOf(a)}</b><br><span style="color:#888;font-size:12px">${nameEn(a)}</span></td>` +
+          `<td style="padding:5px 10px 5px 0;vertical-align:top;white-space:nowrap"><b>${nameOf(a)}</b><br><span style="color:#888;font-size:12px">${nameEn(a)}</span>` +
+          (admin && projOf(a) ? `<br><span style="color:#2e5c8a;font-size:12px">KOICA · ${projOf(a)}</span>` : "") + `</td>` +
           `<td style="padding:5px 8px;vertical-align:top;white-space:nowrap"><span style="background:${color[a.risk]};color:#fff;border-radius:9px;padding:1px 8px;font-size:12px">${LV[a.risk]} · ${LV_EN[a.risk]}</span></td>` +
           `<td style="padding:5px 0;vertical-align:top">${a.hits.map(hitKo).join("<br>")}<br><span style="color:#888;font-size:12px">${a.hits.map(hitEn).join(" · ")}</span></td>` +
           `</tr>`
@@ -431,6 +449,7 @@ module.exports = async (req, res) => {
       (alarmKo ? `<p style="margin:4px 0 10px;padding:6px 10px;border-left:4px solid ${alarmChanged ? "#c0342b" : "#2e5c8a"};background:#f4f6f9">` +
         `<b>${alarmKo}</b><br><span style="color:#888;font-size:12px">${alarmEn}</span></p>` : "") +
       (useDistrict ? "" : `<p style="color:#c62828">군 단위 예보 실패로 주 단위로 대체 발송</p>`) +
+      (list.length ? projBox : "") +
       (list.length ? `<table style="border-collapse:collapse">${rows}</table>` : `<p>기상·재난 축 즉시 알림 대상은 없습니다.</p>`) +
       (withNotices && recentNotices.length ? `<p style="margin-top:12px"><b>대사관 안전공지(최근 7일)</b><br>` +
         recentNotices.map((x) => `${x.date} · ${x.title}`).join("<br>") + `<br><span style="color:#888;font-size:12px">전문: 대시보드 상단 패널 또는 0404.go.kr</span></p>` : "") +
@@ -449,7 +468,7 @@ module.exports = async (req, res) => {
   const outbox = []; // [{to, subject, html, headers, who}]
   if (shouldSend && process.env.ALERT_EMAIL_TO) {
     outbox.push({ who: "admin", to: process.env.ALERT_EMAIL_TO.split(",").map((s) => s.trim()).filter(Boolean),
-      subject: subjectOf(mailList), html: buildHtml(mailList) });
+      subject: subjectOf(mailList), html: buildHtml(mailList, "", true, true) });
   }
 
   // ── 신청자(대시보드 「경보 메일」로 신청·확인한 사람) ──
