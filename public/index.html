@@ -712,7 +712,6 @@ ko: {
   status:(tm, nf, note) => tm + " EAT" + (nf ? ` · ${nf}개 소스 실패` : (note ? ` · 정상 (${note})` : " · 정상")),
   subtitle:(pub) => "KOICA 탄자니아사무소 · 전국 31개 주 · 6개 위험축 " + (pub ? "실시간 안전 현황" : "실시간 관제")
     + (pub ? "" : ' <span class="tag">시범</span>'),
-  contact_label:"현장 안전 문의",
   pp_public:"이 페이지는 공개 기상·재난 데이터만 표시합니다. 파견인력 명부·연락처·안전확인 응답 등 개인정보는 <b>포함되어 있지 않으며</b>, 방문자 정보도 수집하지 않습니다. 단, <b>경보 메일을 신청하면</b> 입력한 이메일 주소와 고른 지역만 발송 목적으로 보관하며 해지 즉시 삭제합니다.",
   pp_internal:"파견인력은 <b>배치 도시 단위</b>로만 관리하며 GPS 좌표·이동경로를 수집하지 않습니다. 안전확인 응답은 이 브라우저에만 저장(localStorage)되며 외부로 전송되지 않습니다. 아래 명부는 '26.2분기 사업현황 자료의 소속·인원 정보를 옮긴 <b>초기값 예시</b>로, 실제 운영 시 확정 명부로 교체해야 합니다.",
   footer:`<b>데이터 출처</b> ·
@@ -870,7 +869,6 @@ en: {
   status:(tm, nf, note) => tm + " EAT" + (nf ? ` · ${nf} source${nf>1?"s":""} failed` : (note ? ` · OK (${note})` : " · OK")),
   subtitle:(pub) => "KOICA Tanzania Office · 31 regions · 6 hazard axes · " + (pub ? "live safety status" : "live monitoring")
     + (pub ? "" : ' <span class="tag">pilot</span>'),
-  contact_label:"Field safety contact",
   pp_public:"This page shows public weather and disaster data only. It contains <b>no personal data</b> (no staff roster, contacts or safe-check replies) and collects no visitor data. If you <b>subscribe to alert emails</b>, only your email address and chosen areas are kept, solely to send alerts, and are deleted when you unsubscribe.",
   pp_internal:"Field staff are tracked at <b>town level only</b>; no GPS or movement data is collected. Safe-check replies are stored in this browser only (localStorage) and never sent anywhere. The roster below is a <b>seed example</b> from the 2026 Q2 project status data and must be replaced with the confirmed roster in operation.",
   footer:`<b>Data sources</b> ·
@@ -1025,7 +1023,8 @@ function renderContact(){
   const oc = IS_PUBLIC ? (EN() ? (OFFICE_CONTACT_EN || OFFICE_CONTACT) : OFFICE_CONTACT) : "";
   const e = MOFA && MOFA.embassy && MOFA.embassy.tel ? t("emb_line", MOFA.embassy) : "";
   const parts = [oc, e].filter(Boolean);
-  $("#foot-contact").innerHTML = parts.length ? "<b>" + t("contact_label") + "</b> · " + parts.join(" · ") + "<br>" : "";
+  /* 연락처 앞의 제목(굵은 글씨)은 뺐다(교민 공개, 2026-09-27 사용자 요청) — 연락처만 나열 */
+  $("#foot-contact").innerHTML = parts.length ? parts.join(" · ") + "<br>" : "";
 }
 function setLang(l){
   LANG = l === "en" ? "en" : "ko";
