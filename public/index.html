@@ -509,6 +509,16 @@ tbody tr:hover{background:var(--line2)}
 .eqlbl{display:flex;justify-content:space-between;font-size:10px;color:var(--ink3)}
 footer{color:var(--ink3);font-size:11px;line-height:1.7;padding:10px 2px 24px}
 footer b{color:var(--ink2)}
+.fnote summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--ink2);list-style:none;user-select:none;padding:4px 0}
+.fnote summary::-webkit-details-marker{display:none}
+.fnote summary::before{content:"▸ ";color:var(--ink3)}
+.fnote[open] summary::before{content:"▾ "}
+.fnote summary small{font-weight:400;color:var(--ink3)}
+.fnote-b{padding-top:4px}
+.fcontact{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+.fcontact:empty{display:none}
+.fcontact div{font-size:12px;color:var(--ink2)}
+.fcontact a{color:var(--accent);text-decoration:none;font-weight:700;white-space:nowrap}
 code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 </style>
 </head>
@@ -637,10 +647,16 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 <div id="modal"></div>
 
 <footer>
-  <span id="foot-contact"></span>
+  <!-- 데이터 출처·판정 기준·한계·개인정보는 길어서 「참고사항」으로 접어 둔다(사용자 요청 2026-09-27). 전화번호는 아래에 항상 보임 -->
+  <details class="fnote"><summary data-t="foot_more">참고사항</summary>
+  <div class="fnote-b">
   <span id="foot-text"></span>
   <b id="pp-label" data-t="pp">개인정보</b> ·
   <span id="pp-body"></span>
+  </div>
+  </details>
+  <!-- 전화번호는 맨 아래, 한 줄에 하나씩(사무소 · 대사관 · 영사콜센터) — 사용자 요청 2026-09-27 -->
+  <div class="fcontact" id="foot-contact"></div>
 </footer>
 </div>
 
@@ -752,7 +768,7 @@ ko: {
   mofa:"외교부 여행경보 · 대사관 안전공지", mofa_note:(d) => `외교부 해외안전여행(0404.go.kr) · 공지 ${d}건`,
   mofa_lvl:(l) => `${l.lvl}단계 ${l.ko}`, mofa_all:"전 지역", mofa_src:"자료: 외교부 여행경보제도 · 주탄자니아대사관 안전공지 (30분 갱신)",
   mofa_notices:"대사관 안전공지", mofa_empty:"최근 안전공지 없음", mofa_fail:"외교부 자료 불러오기 실패",
-  mofa_more:"제목을 누르면 본문이 새 창(모달)으로 열립니다", mofa_notext:"본문이 이미지·첨부로만 제공됩니다 — 0404.go.kr에서 확인", emb_line:(e) => `주탄자니아대한민국대사관 ${e.tel}` + (e.urgency ? ` · 영사콜센터(24시간) ${e.urgency}` : ""),
+  mofa_more:"제목을 누르면 본문이 새 창(모달)으로 열립니다", mofa_notext:"본문이 이미지·첨부로만 제공됩니다 — 0404.go.kr에서 확인", emb_name:"주탄자니아대한민국대사관", emb_call:"영사콜센터(24시간)",
   // 지도
   maplegend:(n, pub, wil) => `행정경계 ${units(n)} · ` + (pub ? "" : `<b style="color:var(--accent)">파란 테두리 = 파견인력 배치`
     + (wil ? "(주 단위 · 해당 주 전체 표시)" : "") + `</b> · `) + `◆ 하천 이상 · ${UNIT()} 클릭 시 상세`,
@@ -784,6 +800,7 @@ ko: {
   hm_normal:(n) => `정상 ${units(n)}`,
   tblnote_heat:() => `임계 이상 ${UNIT()}만 표시 · 정상 지역은 접어둠 · ${UNIT()} 클릭 시 상세`,
   tblnote_tbl:"평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬",
+  foot_more:"참고사항 <small>데이터 출처 · 판정 기준 · 개인정보</small>",
   cta_t:"우리 지역 경보를 메일로 받기", cta_s:"주·군을 골라 위험 등급이 오르면 알림 · 무료 · 언제든 해지",
   tab_dash:"대시보드", tab_detail:"지역별 상세", tab_hydro:"하천·지진", tab_events:"재난·뉴스", tab_mofa:"외교부·대사관", tab_mail:"✉ 경보 메일",
   tab_hint:"▲ 탭을 누르면 지역별 수치·하천·지진·뉴스·대사관 공지가 펼쳐집니다", mofa_wait:"외교부 자료를 불러오는 중…",
@@ -909,7 +926,7 @@ en: {
   mofa:"MOFA travel advisory · Embassy safety notices", mofa_note:(d) => `Korean MOFA (0404.go.kr) · ${d} notices`,
   mofa_lvl:(l) => `Level ${l.lvl} · ${l.en}`, mofa_all:"whole country", mofa_src:"Source: Korean MOFA travel advisory · Embassy of Korea in Tanzania notices (refreshed every 30 min). Notices are in Korean.",
   mofa_notices:"Embassy safety notices", mofa_empty:"No recent notices", mofa_fail:"MOFA data unavailable",
-  mofa_more:"click a title to open the full notice", mofa_notext:"Body available only as image/attachment — see 0404.go.kr", emb_line:(e) => `Embassy of Korea in Tanzania ${e.tel}` + (e.urgency ? ` · Consular call centre (24h) ${e.urgency}` : ""),
+  mofa_more:"click a title to open the full notice", mofa_notext:"Body available only as image/attachment — see 0404.go.kr", emb_name:"Embassy of Korea in Tanzania", emb_call:"Consular call centre (24h)",
   maplegend:(n, pub, wil) => `${units(n)} · ` + (pub ? "" : `<b style="color:var(--accent)">Blue outline = field staff deployed`
     + (wil ? " (region-level · whole region shown)" : "") + `</b> · `) + `◆ river anomaly · click a ${UNIT()} for details`,
   staff_tip:(n, live) => `${n} field staff${live < n ? ` (${live} resident)` : ""}`,
@@ -935,6 +952,7 @@ en: {
   hm_normal:(n) => `Normal: ${units(n)}`,
   tblnote_heat:() => `Only ${UNIT()}s at or above thresholds · normal areas collapsed · click a ${UNIT()} for details`,
   tblnote_tbl:"Normal = ERA5 2006-2025 · click a header to sort",
+  foot_more:"Notes <small>data sources · criteria · privacy</small>",
   cta_t:"Get alerts for your area by email", cta_s:"Pick regions or districts · free · unsubscribe any time",
   tab_dash:"Dashboard", tab_detail:"By area", tab_hydro:"Rivers · Quakes", tab_events:"Disasters · News", tab_mofa:"MOFA · Embassy", tab_mail:"✉ Alert email",
   tab_hint:"▲ Tap a tab to open area figures, rivers, quakes, news and embassy notices", mofa_wait:"Loading MOFA data…",
@@ -1039,10 +1057,17 @@ function applyLang(){
 /* 푸터 연락처 — 사무소 연락처(공개판) + 외교부 API에서 받은 대사관 대표번호·영사콜센터(양쪽 판) */
 function renderContact(){
   const oc = IS_PUBLIC ? (EN() ? (OFFICE_CONTACT_EN || OFFICE_CONTACT) : OFFICE_CONTACT) : "";
-  const e = MOFA && MOFA.embassy && MOFA.embassy.tel ? t("emb_line", MOFA.embassy) : "";
-  const parts = [oc, e].filter(Boolean);
+  const em = (MOFA && MOFA.embassy) || {};
+  /* 번호는 눌러서 바로 걸 수 있게 tel: 링크로(폰). "이름 (번호)" 형태의 사무소 문자열도 이름과 번호로 나눈다 */
+  const telA = n => `<a href="tel:${String(n).replace(/[^+\d]/g, "")}">${hesc(n)}</a>`;
+  const om = /^(.*?)\s*\(([+\d][\d\s-]+)\)\s*$/.exec(oc || "");
+  const lines = [
+    oc ? (om ? `${hesc(om[1])} ${telA(om[2])}` : hesc(oc)) : "",
+    em.tel ? `${t("emb_name")} ${telA(em.tel)}` : "",
+    em.urgency ? `${t("emb_call")} ${telA(em.urgency)}` : "",
+  ].filter(Boolean);
   /* 연락처 앞의 제목(굵은 글씨)은 뺐다(교민 공개, 2026-09-27 사용자 요청) — 연락처만 나열 */
-  $("#foot-contact").innerHTML = parts.length ? parts.join(" · ") + "<br>" : "";
+  $("#foot-contact").innerHTML = lines.map(l => `<div>${l}</div>`).join("");
 }
 function setLang(l){
   LANG = l === "en" ? "en" : "ko";
