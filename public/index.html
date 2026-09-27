@@ -655,7 +655,7 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
   <span id="pp-body"></span>
   </div>
   </details>
-  <!-- 전화번호는 맨 아래, 한 줄에 하나씩(사무소 · 대사관 · 영사콜센터) — 사용자 요청 2026-09-27 -->
+  <!-- 전화번호는 맨 아래, 한 줄에 하나씩(대사관 · 영사콜센터 · KOICA 사무소 순) — 사용자 요청 2026-09-27 -->
   <div class="fcontact" id="foot-contact"></div>
 </footer>
 </div>
@@ -1061,10 +1061,11 @@ function renderContact(){
   /* 번호는 눌러서 바로 걸 수 있게 tel: 링크로(폰). "이름 (번호)" 형태의 사무소 문자열도 이름과 번호로 나눈다 */
   const telA = n => `<a href="tel:${String(n).replace(/[^+\d]/g, "")}">${hesc(n)}</a>`;
   const om = /^(.*?)\s*\(([+\d][\d\s-]+)\)\s*$/.exec(oc || "");
+  /* 순서: 대사관 → 영사콜센터 → KOICA 사무소(맨 아래) — 사용자 요청 2026-09-27 */
   const lines = [
-    oc ? (om ? `${hesc(om[1])} ${telA(om[2])}` : hesc(oc)) : "",
     em.tel ? `${t("emb_name")} ${telA(em.tel)}` : "",
     em.urgency ? `${t("emb_call")} ${telA(em.urgency)}` : "",
+    oc ? (om ? `${hesc(om[1])} ${telA(om[2])}` : hesc(oc)) : "",
   ].filter(Boolean);
   /* 연락처 앞의 제목(굵은 글씨)은 뺐다(교민 공개, 2026-09-27 사용자 요청) — 연락처만 나열 */
   $("#foot-contact").innerHTML = lines.map(l => `<div>${l}</div>`).join("");
