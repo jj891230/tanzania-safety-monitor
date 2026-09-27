@@ -363,7 +363,7 @@ tbody tr:hover{background:var(--line2)}
 .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
 .tabhint{font-size:11.5px;color:var(--ink3);text-align:center;padding:2px 0 18px}
 .pane .grid2{margin-bottom:12px}
-@media(max-width:600px){.tabs{margin-left:-14px;margin-right:-14px;padding:0 8px}.tabs button{padding:11px 11px 9px;font-size:13px}}
+@media(max-width:600px){.tabs{margin-left:-14px;margin-right:-14px;padding:0 4px;gap:0}.tabs button{padding:11px 6px 9px;font-size:12.5px;letter-spacing:-.3px}}   /* 폰: 탭 5개가 한 화면에 들어가게(경보 메일은 폰에서 카드로) */
 /* ── 경보 메일 안내 카드(대시보드) ── */
 .mailcta{display:flex;align-items:center;gap:11px;width:100%;text-align:left;margin:0 0 12px;padding:11px 14px;
   background:var(--accent2);border:1px solid var(--accent);border-radius:8px;color:var(--ink);cursor:pointer}
@@ -374,6 +374,10 @@ tbody tr:hover{background:var(--line2)}
 .mailcta .mc-t span{font-size:11.5px;color:var(--ink2)}
 .mailcta .mc-a{font-size:22px;line-height:1;color:var(--accent)}
 @media(max-width:480px){.mailcta{padding:10px 12px}.mailcta .mc-t span{display:none}}   /* 폰: 제목 한 줄만(지도가 첫 화면에서 밀려나지 않게) */
+/* 경보 메일 진입점은 화면 폭에 따라 하나만 — 사용자 요청(2026-09-27): 모바일은 탭 줄 끝이 화면 밖이라
+   안내 카드로, 웹(PC)은 원래대로 탭으로. 기준 720px은 다른 모바일 배치(히트맵 1열 등)와 같다. */
+@media(min-width:721px){.mailcta{display:none!important}}
+@media(max-width:720px){#tabMail{display:none!important}}
 /* ── 첫 화면 여행경보 한 줄 ── */
 .mofastrip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;background:var(--panel);border:1px solid var(--line);
   border-left:4px solid var(--accent);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px}
