@@ -657,8 +657,8 @@ let granularity = ls("tzGran", "mkoa");   // "mkoa" | "wilaya"
 /* 빌드 모드 — PUBLIC(수행기업 배포용)에는 파견인력 명부·연락처·안전확인이 포함되지 않는다.
    업체가 필요한 것은 지역 위험 현황이지 타사 인력 정보가 아니므로, 공개판에서 아예 제거한다. */
 const IS_PUBLIC = true;
-const OFFICE_CONTACT = "KOICA 탄자니아사무소 (+255 22 260 1917) · 근무시간 외 비상연락은 사업별 PM 경유";
-const OFFICE_CONTACT_EN = "KOICA Tanzania Office (+255 22 260 1917) · out of office hours, contact through each project's PM";   // 영문 화면용(공개판만, build.py CONTACT_EN)
+const OFFICE_CONTACT = "KOICA 탄자니아사무소 (+255 22 260 1917)";   // 교민 공개로 근무시간 외 연락 경로 안내는 뺐다(2026-09-27)
+const OFFICE_CONTACT_EN = "KOICA Tanzania Office (+255 22 260 1917)";   // 영문 화면용(공개판만, build.py CONTACT_EN)
 
 /* 파견인력 초기 명부 — '26.2분기 사업현황 자료 기준. 도시 단위, 개인 이름·좌표 없음.
    연락처(WhatsApp)는 비워 두고 사무소가 직접 입력한다. 참여기업 목록의 실제 개인
