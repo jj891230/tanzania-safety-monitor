@@ -364,6 +364,16 @@ tbody tr:hover{background:var(--line2)}
 .tabhint{font-size:11.5px;color:var(--ink3);text-align:center;padding:2px 0 18px}
 .pane .grid2{margin-bottom:12px}
 @media(max-width:600px){.tabs{margin-left:-14px;margin-right:-14px;padding:0 8px}.tabs button{padding:11px 11px 9px;font-size:13px}}
+/* ── 경보 메일 안내 카드(대시보드) ── */
+.mailcta{display:flex;align-items:center;gap:11px;width:100%;text-align:left;margin:0 0 12px;padding:11px 14px;
+  background:var(--accent2);border:1px solid var(--accent);border-radius:8px;color:var(--ink);cursor:pointer}
+.mailcta:hover{color:var(--ink);box-shadow:0 0 0 2px var(--accent2)}
+.mailcta .mc-i{font-size:20px;line-height:1;color:var(--accent)}
+.mailcta .mc-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.mailcta .mc-t b{font-size:13.5px;color:var(--accent)}
+.mailcta .mc-t span{font-size:11.5px;color:var(--ink2)}
+.mailcta .mc-a{font-size:22px;line-height:1;color:var(--accent)}
+@media(max-width:480px){.mailcta{padding:10px 12px}.mailcta .mc-t span{display:none}}   /* 폰: 제목 한 줄만(지도가 첫 화면에서 밀려나지 않게) */
 /* ── 첫 화면 여행경보 한 줄 ── */
 .mofastrip{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;background:var(--panel);border:1px solid var(--line);
   border-left:4px solid var(--accent);border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:12px}
@@ -531,6 +541,8 @@ code{background:var(--line2);padding:1px 4px;border-radius:3px;font-size:11px}
 <div class="brief" id="brief"></div>
 <div class="mofastrip" id="mofastrip" hidden></div>
 <div class="kpis" id="kpis"></div>
+<!-- 폰에서는 탭 줄 끝의 「경보 메일」이 화면 밖으로 밀려 안 보인다(사용자 지적 2026-09-27) — 첫 화면에 안내 카드 -->
+<button class="mailcta" id="mailCta" hidden><span class="mc-i">✉</span><span class="mc-t"><b data-t="cta_t">우리 지역 경보를 메일로 받기</b><span data-t="cta_s"></span></span><span class="mc-a">›</span></button>
 
 <div class="panel" id="mappanel">
   <div class="phead"><h2 data-t="map">전국 위험지도</h2>
@@ -768,6 +780,7 @@ ko: {
   hm_normal:(n) => `정상 ${units(n)}`,
   tblnote_heat:() => `임계 이상 ${UNIT()}만 표시 · 정상 지역은 접어둠 · ${UNIT()} 클릭 시 상세`,
   tblnote_tbl:"평년 = ERA5 2006-2025 기준 · 헤더 클릭 시 정렬",
+  cta_t:"우리 지역 경보를 메일로 받기", cta_s:"주·군을 골라 위험 등급이 오르면 알림 · 무료 · 언제든 해지",
   tab_dash:"대시보드", tab_detail:"지역별 상세", tab_hydro:"하천·지진", tab_events:"재난·뉴스", tab_mofa:"외교부·대사관", tab_mail:"✉ 경보 메일",
   tab_hint:"▲ 탭을 누르면 지역별 수치·하천·지진·뉴스·대사관 공지가 펼쳐집니다", mofa_wait:"외교부 자료를 불러오는 중…",
   strip_alarm:"외교부 여행경보", strip_rest:"그 외 지역", strip_notice:"최신 대사관 공지", strip_more:"자세히 ›",
@@ -918,6 +931,7 @@ en: {
   hm_normal:(n) => `Normal: ${units(n)}`,
   tblnote_heat:() => `Only ${UNIT()}s at or above thresholds · normal areas collapsed · click a ${UNIT()} for details`,
   tblnote_tbl:"Normal = ERA5 2006-2025 · click a header to sort",
+  cta_t:"Get alerts for your area by email", cta_s:"Pick regions or districts · free · unsubscribe any time",
   tab_dash:"Dashboard", tab_detail:"By area", tab_hydro:"Rivers · Quakes", tab_events:"Disasters · News", tab_mofa:"MOFA · Embassy", tab_mail:"✉ Alert email",
   tab_hint:"▲ Tap a tab to open area figures, rivers, quakes, news and embassy notices", mofa_wait:"Loading MOFA data…",
   strip_alarm:"MOFA travel advisory", strip_rest:"rest of the country", strip_notice:"Latest embassy notice", strip_more:"More ›",
@@ -2852,9 +2866,10 @@ setInterval(loadNews, 15 * 60 * 1000);   // 서버가 10분 캐시하므로 이 
 loadMofa();
 setInterval(loadMofa, 30 * 60 * 1000);   // 여행경보·공지는 하루 몇 번 바뀌는 자료가 아니다
 $("#mailGo").onclick = () => subModal("new");
+$("#mailCta").onclick = () => subModal("new");
 /* 「경보 메일」 탭은 발송(Gmail)·저장소(Upstash)가 둘 다 설정된 뒤에만 보인다 — 설정 전에 방문자가 "준비 중" 탭을 보지 않게 */
 fetch("/api/subscribe?action=status").then(r => r.json()).then(j => {
-  SUB_READY = !!j.ready; $("#tabMail").hidden = !SUB_READY;
+  SUB_READY = !!j.ready; $("#tabMail").hidden = !SUB_READY; $("#mailCta").hidden = !SUB_READY;
   if (SUB_READY && location.hash === "#mail") setTab("mail", {scroll: false});
 }).catch(() => {});
 subFromUrl();
