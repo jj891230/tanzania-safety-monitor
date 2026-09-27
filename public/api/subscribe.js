@@ -7,6 +7,8 @@
 //   POST {action:"get", t}           설정 보기(링크를 받은 본인만 token을 안다)
 //   POST {action:"update", t, ...}   지역·등급·요약 변경
 //   POST {action:"unsub", t}         해지(즉시 삭제)
+//   POST {action:"link", email}      관리(변경·해지) 링크를 그 주소로 다시 보냄 — 메일을 지워 링크를 잃은 사람용.
+//                                    등록 여부는 응답에 드러내지 않는다(항상 ok).
 //   POST ?action=unsub&t=...         메일 앱의 "원클릭 수신거부"(List-Unsubscribe-Post)용
 //
 // 확인·해지를 GET 링크 한 번으로 처리하지 않는 이유: 회사 메일 보안 스캐너가 메일 속 링크를
@@ -82,6 +84,27 @@ module.exports = async (req, res) => {
         `The link is valid for 48 hours. If you did not request this, ignore this email — nothing will be sent and the address is deleted after 48 hours.</p></div>`;
       const [r] = await sendMany([{ to: [email], subject: "[탄자니아 안전모니터] 경보 메일 신청 확인 / Confirm subscription", html }]);
       if (!r.ok) { await redis("DEL", "pend:" + t); return res.status(502).json({ error: "mail", detail: r.error }); }
+      return res.status(200).json({ ok: true });
+    }
+
+    if (action === "link") {
+      const email = String(b.email || "").trim().toLowerCase();
+      if (email.length > 254 || !EMAIL_RE.test(email)) return res.status(400).json({ error: "email" });
+      if (await limited("rl:ip:" + ip, 8, 3600)) return res.status(429).json({ error: "rate" });
+      if (await limited("rl:lk:" + email, 3, 86400)) return res.status(429).json({ error: "rate" });
+      const tok = await redis("GET", "em:" + email);
+      const sub = tok ? parse(await redis("GET", "sub:" + tok)) : null;
+      if (sub && canMailAnyone()) {
+        const manage = `${origin}/?sub=${tok}`;
+        const html =
+          `<div style="font-family:sans-serif;font-size:14px;line-height:1.6">` +
+          `<p><b>[탄자니아 안전모니터]</b> 경보 메일 설정 링크입니다.<br><span style="color:#888;font-size:12px">Your alert email settings link.</span></p>` +
+          `<p>받는 지역 / Areas: <b>${esc(areaText(sub))}</b> · 최소 등급: <b>${LV[sub.minLevel] || "경계"}</b> 이상</p>` +
+          `<p><a href="${manage}" style="display:inline-block;background:#2e5c8a;color:#fff;padding:9px 16px;border-radius:6px;text-decoration:none">지역·등급 변경 / Change</a> ` +
+          `<a href="${manage}&unsub=1" style="display:inline-block;margin-left:6px;color:#c0342b">수신 해지 / Unsubscribe</a></p>` +
+          `<p style="color:#888;font-size:12px">직접 요청하지 않으셨다면 무시하셔도 됩니다 — 아무것도 바뀌지 않습니다.</p></div>`;
+        await sendMany([{ to: [email], subject: "[탄자니아 안전모니터] 경보 메일 설정·해지 링크 / Manage subscription", html }]);
+      }
       return res.status(200).json({ ok: true });
     }
 

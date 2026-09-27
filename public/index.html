@@ -396,9 +396,11 @@ tbody tr:hover{background:var(--line2)}
 .mcard.sub{max-width:640px}
 .sform .fl{display:block;font-size:11.5px;color:var(--ink2);font-weight:700;margin:14px 0 6px}
 .sform .fl:first-of-type{margin-top:4px}
-.sform input[type=email],.sform .dsearch{width:100%;padding:9px 11px;font:inherit;font-size:14px;border:1px solid var(--line);
+/* 입력칸 글자는 16px 이상 — 아이폰 Safari는 그보다 작은 칸을 누르면 화면을 확대하고, 확대된 채로 남아
+   신청 창의 위·오른쪽·아래가 잘렸다(사용자 캡처 2026-09-27) */
+.sform input[type=email],.sform .dsearch{width:100%;padding:9px 11px;font:inherit;font-size:16px;border:1px solid var(--line);
   border-radius:6px;background:var(--bg);color:var(--ink)}
-.sform .dsearch{font-size:12.5px;padding:7px 10px;margin-top:8px}
+.sform .dsearch{font-size:16px;padding:7px 10px;margin-top:8px}
 .semail{font-size:14px;font-weight:700}
 .sseg{margin-left:0;display:inline-flex}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -421,11 +423,14 @@ tbody tr:hover{background:var(--line2)}
 .smsg.err{background:var(--l4bg);color:var(--ink);border-left:4px solid var(--l4)}
 .smsg.info{background:var(--accent2);color:var(--ink);border-left:4px solid var(--accent)}
 .sact{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+/* 신청·저장 버튼은 창을 스크롤해도 아래에 붙어 있게(주·군 목록을 펼치면 버튼이 한참 아래로 밀린다) */
+.sform .sact{position:sticky;bottom:0;background:var(--panel);padding:10px 0 12px;margin-bottom:-12px;border-top:1px solid var(--line2);z-index:1}
+.sform .slink{background:none;border:none;padding:4px 0;color:var(--accent);font-size:12px;text-decoration:underline;cursor:pointer}
 .btnp{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;padding:9px 18px}
 .btnp:hover{color:#fff;opacity:.9}
 .btnp:disabled{opacity:.45;cursor:not-allowed}
 .btnd{color:var(--l4);border-color:var(--l4)}
-@media(max-width:600px){.mask{padding:10px}.mcard{max-height:94vh}.mhead,.mbody{padding-left:14px;padding-right:14px}}
+@media(max-width:600px){.mask{padding:10px}.mcard{max-height:94vh;max-height:94dvh}.mhead,.mbody{padding-left:14px;padding-right:14px}}
 
 /* ── 한 줄 브리핑 ── */
 .brief{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--panel);
@@ -817,7 +822,9 @@ ko: {
   sub_search:"군·주 이름 검색 (예: Meru, 아루샤)", sub_covered:"주 전체 선택됨",
   sub_digest:"매일 07:00(EAT) 일일 요약도 받기 — 그날 주의 이상 전체", 
   sub_agree:"이메일 주소와 고른 지역은 이 경보 발송에만 쓰이며, 해지하면 즉시 삭제됩니다. 이에 동의합니다.",
-  sub_submit:"신청하기", sub_save:"변경 저장", sub_unsub:"수신 해지",
+  sub_submit:"신청하기", sub_link:"이미 신청하셨나요? 해지·변경 링크 받기",
+  sub_link_need:"위 이메일 칸에 신청하셨던 주소를 입력한 뒤 눌러 주세요.",
+  sub_link_sent:(e) => `<b>${e}</b>가 신청된 주소라면 해지·변경 링크를 메일로 보냈습니다. 메일이 안 보이면 스팸함도 확인해 주세요.`, sub_save:"변경 저장", sub_unsub:"수신 해지",
   sub_sent:(e) => `<b>${e}</b>로 확인 메일을 보냈습니다. 메일의 <b>신청 확인하기</b>를 눌러야 신청이 완료됩니다(48시간 유효). 메일이 안 보이면 스팸함을 확인해 주세요.`,
   sub_confirm_q:"경보 메일 신청을 확정할까요?", sub_confirm_btn:"신청 확정",
   sub_confirmed:"신청이 완료되었습니다. 아래에서 언제든 지역·등급을 바꾸거나 해지할 수 있습니다(모든 경보 메일 하단에도 링크가 있습니다).",
@@ -969,7 +976,9 @@ en: {
   sub_search:"Search district/region (e.g. Meru, Arusha)", sub_covered:"whole region selected",
   sub_digest:"Also send the daily 07:00 (EAT) digest — all Moderate+ areas that day",
   sub_agree:"My email address and chosen areas are used only to send these alerts and are deleted as soon as I unsubscribe. I agree.",
-  sub_submit:"Subscribe", sub_save:"Save changes", sub_unsub:"Unsubscribe",
+  sub_submit:"Subscribe", sub_link:"Already subscribed? Get a link to change or unsubscribe",
+  sub_link_need:"Enter the address you subscribed with in the email box above first.",
+  sub_link_sent:(e) => `If <b>${e}</b> is subscribed, a link to change or unsubscribe has been sent. Check your spam folder too.`, sub_save:"Save changes", sub_unsub:"Unsubscribe",
   sub_sent:(e) => `A confirmation email was sent to <b>${e}</b>. Click <b>Confirm</b> in it to finish (valid 48 hours). Check your spam folder if you don't see it.`,
   sub_confirm_q:"Confirm your alert email subscription?", sub_confirm_btn:"Confirm",
   sub_confirmed:"You're subscribed. You can change areas/level or unsubscribe here any time (every alert email has these links too).",
@@ -2677,7 +2686,7 @@ function subModal(mode = "new", token = "", opts = {}){
       <div class="smsg" id="smsg" hidden></div>
       <div class="sact">
         ${manage ? `<button class="btnp" id="sfSave">${t("sub_save")}</button><button id="sfUnsub" class="btnd">${t("sub_unsub")}</button>`
-                 : `<button class="btnp" id="sfGo"${SUB_READY === false ? " disabled" : ""}>${t("sub_submit")}</button>`}
+                 : `<button class="btnp" id="sfGo"${SUB_READY === false ? " disabled" : ""}>${t("sub_submit")}</button><button type="button" class="slink" id="sfLink">${t("sub_link")}</button>`}
       </div>`;
     const keepEmail = () => { const i = $("#sfEmail"); if (i) st.email = i.value; };
     box.querySelectorAll(".sseg button").forEach(b => b.onclick = () => { keepEmail(); st.minLevel = +b.dataset.lv; draw(); });
@@ -2716,6 +2725,13 @@ function subModal(mode = "new", token = "", opts = {}){
         await subApi({action: "subscribe", email: st.email.trim(), ...payload()});
         box.innerHTML = `<div class="smsg ok">${t("sub_sent", hesc(st.email.trim()))}</div>`;
       } catch (e) { msg("err", errText(e)); $("#sfGo").disabled = false; }
+    };
+    /* 이미 신청한 사람이 메일을 지워 해지 링크를 잃었을 때 — 이메일 칸의 주소로 관리 링크를 다시 보낸다 */
+    if ($("#sfLink")) $("#sfLink").onclick = async () => {
+      keepEmail();
+      if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(st.email.trim())) return msg("err", t("sub_link_need"));
+      try { await subApi({action: "link", email: st.email.trim()}); msg("ok", t("sub_link_sent", hesc(st.email.trim()))); }
+      catch (e) { msg("err", errText(e)); }
     };
     if ($("#sfSave")) $("#sfSave").onclick = async () => {
       if (!st.all && !st.regions.size && !st.districts.size) return msg("err", t("sub_err_noarea"));
