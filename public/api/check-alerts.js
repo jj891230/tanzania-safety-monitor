@@ -57,7 +57,7 @@ async function cached(key, ttl, fn, ok = () => true) {
 // QStash 스케줄 등록(한 번만) — 고정 ID로 올리므로 다시 불려도 같은 스케줄을 덮어쓸 뿐 늘지 않는다.
 async function ensureSchedules() {
   if (!process.env.QSTASH_TOKEN || !hasStore() || process.env.VERCEL_ENV !== "production") return null;
-  try { if (await redis("GET", "qstash:v1")) return "ok"; } catch { return null; }
+  try { if (await redis("GET", "qstash:v2")) return "ok"; } catch { return null; }   // v2: 요약 시각 04:02로 변경
   const base = (process.env.QSTASH_URL || "https://qstash.upstash.io").replace(/\/+$/, "");
   const dest = SCHED_BASE.replace(/\/+$/, "") + "/api/check-alerts";
   const mk = async (id, cron, body) => {
@@ -73,8 +73,8 @@ async function ensureSchedules() {
     if (!r.ok) throw new Error(id + " HTTP " + r.status + " " + (await r.text()).slice(0, 150));
   };
   await mk("tsm-check", "*/5 * * * *", {});
-  await mk("tsm-digest", "0 4 * * *", { digest: 1 });   // 04:00 UTC = 07:00 EAT
-  await redis("SET", "qstash:v1", new Date().toISOString());
+  await mk("tsm-digest", "2 4 * * *", { digest: 1 });   // 04:02 UTC = 07:02 EAT — 5분 점검(매 5분 00초)과 겹치지 않게 2분 뒤
+  await redis("SET", "qstash:v2", new Date().toISOString());
   return "created";
 }
 
@@ -209,6 +209,13 @@ module.exports = async (req, res) => {
   if (useStore) {
     let got = "OK";
     try { got = await redis("SET", "lock:check", "1", "NX", "EX", 90); } catch {}
+    // 일일 요약은 하루 한 번뿐이라 잠금에 걸렸다고 버리면 안 된다 — 5분 점검이 끝나길 최대 45초 기다린다.
+    // (예전엔 요약과 5분 점검이 둘 다 04:00:00에 떠서, 점검이 먼저 잠그면 요약이 그냥 건너뛰어졌다.
+    //  10/2·9·10·11 나흘이 그랬고 GitHub 백업이 몇 시간 늦게 대신 보냈다.)
+    for (let i = 0; isDigest && got !== "OK" && i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      try { got = await redis("SET", "lock:check", "1", "NX", "EX", 90); } catch { got = "OK"; }
+    }
     if (got !== "OK") { res.status(200).json({ skipped: "locked", schedule }); return; }
   }
   const unlock = async () => { if (useStore) { try { await redis("DEL", "lock:check"); } catch {} } };
