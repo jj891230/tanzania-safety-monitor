@@ -542,8 +542,15 @@ module.exports = async (req, res) => {
       : `[탄자니아 안전모니터] ${isDigest ? "일일 요약 · " : ""}${LV[top]} ${unit} ${list.length}건` + (alarmChanged ? " · 여행경보 변경" : "");
   };
   const outbox = []; // [{to, subject, html, headers, who}]
-  if (shouldSend && process.env.ALERT_EMAIL_TO) {
-    outbox.push({ who: "admin", to: process.env.ALERT_EMAIL_TO.split(",").map((s) => s.trim()).filter(Boolean),
+  // 수신 제외 주소(ALERT_EMAIL_BLOCK, 쉼표 구분) — ALERT_EMAIL_TO는 Vercel 보안값이라 내용을 다시 볼 수 없어,
+  // 다른 주소를 건드리지 않고 특정 주소만 뺄 수 있게 한다. 응답에는 주소 없이 인원수만 남긴다(워크플로 로그가 공개).
+  const listOf = (v) => String(v || "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const blocked = new Set(listOf(process.env.ALERT_EMAIL_BLOCK));
+  const adminAll = listOf(process.env.ALERT_EMAIL_TO);
+  const adminTo = adminAll.filter((a) => !blocked.has(a));
+  const adminStats = { registered: adminAll.length, blocked: adminAll.length - adminTo.length, active: adminTo.length };
+  if (shouldSend && adminTo.length) {
+    outbox.push({ who: "admin", to: adminTo,
       subject: subjectOf(mailList), html: buildHtml(mailList, "", true, true) });
   }
 
@@ -566,6 +573,7 @@ module.exports = async (req, res) => {
   };
   const isNewOrUp = (a) => { const p = prevItems[a.key]; return !p || (p.lv || 0) < a.risk; };
   for (const s of subscribers) {
+    if (blocked.has(String(s.email || "").toLowerCase())) continue;
     if (isDigest && !s.digest) continue;
     if (!isDigest && !(prev && prev.items)) continue;
     const minLv = [2, 3, 4].includes(+s.minLevel) ? +s.minLevel : 3;
@@ -605,6 +613,7 @@ module.exports = async (req, res) => {
     mailKind,
     mailed: mailList.length,
     subscribers: subStats,
+    adminRecipients: adminStats,
     posted,
     summary,
     alerts: alerts.slice(0, 10).map(({ key, region, project, risk, lead, hitsText }) => ({ key, region, project, risk, lead, hits: hitsText })),
